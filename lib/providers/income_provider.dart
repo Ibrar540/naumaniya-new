@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/income.dart';
 
 class IncomeProvider with ChangeNotifier {
-  List<Income> _incomes = [];
+  final List<Income> _incomes = [];
 
   List<Income> get incomes => _incomes;
 

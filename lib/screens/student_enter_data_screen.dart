@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../db/database_helper.dart';
 import '../providers/language_provider.dart';
 import '../providers/auto_sync_provider.dart';
 import '../models/student.dart';
+import '../db/database_helper.dart';
 import '../widgets/voice_input_button.dart';
-import '../widgets/student_image_picker.dart';
-import 'home_screen.dart';
+import '../screens/home_screen.dart';
 
 class StudentEnterDataScreen extends StatefulWidget {
   final int? classId;
   final Student? studentToEdit;
-  
-  const StudentEnterDataScreen({Key? key, this.classId, this.studentToEdit}) : super(key: key);
-  
+
+  const StudentEnterDataScreen({super.key, this.classId, this.studentToEdit});
+
   @override
   _StudentEnterDataScreenState createState() => _StudentEnterDataScreenState();
 }
 
 class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
+  final _dbHelper = DatabaseHelper.instance;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _fatherNameController = TextEditingController();
@@ -27,12 +27,10 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
   final _feeController = TextEditingController();
   final _statusController = TextEditingController();
   DateTime? _admissionDate;
-  DateTime? _stuckupDate;
+  DateTime? _struckOffDate;
   DateTime? _graduationDate;
   DateTime? _leftDate;
   bool _isLoading = false;
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-  String? _studentImageUrl;
 
   @override
   void initState() {
@@ -45,16 +43,17 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
       _feeController.text = student.fee;
       _statusController.text = student.status;
       _admissionDate = student.admissionDate;
-      if (student.stuckupDate.isNotEmpty && student.stuckupDate != 'none') {
-        _stuckupDate = DateFormat('yyyy-MM-dd').parse(student.stuckupDate);
+      if (student.struckOffDate.isNotEmpty && student.struckOffDate != 'none') {
+        _struckOffDate = DateFormat('yyyy-MM-dd').parse(student.struckOffDate);
       }
-      if (student.graduationDate.isNotEmpty && student.graduationDate != 'none') {
-        _graduationDate = DateFormat('yyyy-MM-dd').parse(student.graduationDate);
+      if (student.graduationDate.isNotEmpty &&
+          student.graduationDate != 'none') {
+        _graduationDate =
+            DateFormat('yyyy-MM-dd').parse(student.graduationDate);
       }
       if (student.leftDate.isNotEmpty && student.leftDate != 'none') {
         _leftDate = DateFormat('yyyy-MM-dd').parse(student.leftDate);
       }
-      _studentImageUrl = student.imageUrl;
     } else {
       _admissionDate = DateTime.now();
       _statusController.text = 'Active'; // Default status
@@ -75,16 +74,16 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
     }
   }
 
-  void _pickStuckupDate() async {
+  void _pickStruckOffDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _stuckupDate ?? DateTime.now(),
+      initialDate: _struckOffDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() {
-        _stuckupDate = picked;
+        _struckOffDate = picked;
       });
     }
   }
@@ -120,12 +119,12 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
   void _onStatusChanged(String status) {
     setState(() {
       _statusController.text = status;
-      
+
       // Auto-set dates based on status
       switch (status) {
-        case 'StackUp':
-          if (_stuckupDate == null) {
-            _stuckupDate = DateTime.now();
+        case 'Struck Off':
+          if (_struckOffDate == null) {
+            _struckOffDate = DateTime.now();
           }
           break;
         case 'Graduate':
@@ -133,13 +132,17 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
             _graduationDate = DateTime.now();
           }
           break;
+        case 'Active':
+          // Clear status dates when status changes to Active
+          // but preserve manually set dates
+          break;
       }
     });
   }
 
   Future<void> _saveStudent() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
     });
@@ -150,34 +153,34 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
         _statusController.text = 'Active';
       }
       final status = _statusController.text.trim();
-      
-      final fatherName = _fatherNameController.text.trim().isEmpty 
-          ? 'none' 
+
+      final fatherName = _fatherNameController.text.trim().isEmpty
+          ? 'none'
           : _fatherNameController.text.trim();
-      
-      final mobile = _mobileController.text.trim().isEmpty 
-          ? 'none' 
+
+      final mobile = _mobileController.text.trim().isEmpty
+          ? 'none'
           : _mobileController.text.trim();
-      
-      final fee = _feeController.text.trim().isEmpty 
-          ? 'none' 
+
+      final fee = _feeController.text.trim().isEmpty
+          ? 'none'
           : _feeController.text.trim();
-      
+
       // Auto-set admission date if not selected
       final admissionDate = _admissionDate ?? DateTime.now();
-      
+
       // Auto-set status-specific dates
-      DateTime? stuckupDate = _stuckupDate;
+      DateTime? struckOffDate = _struckOffDate;
       DateTime? graduationDate = _graduationDate;
       DateTime? leftDate = _leftDate;
-      
-      if (status == 'StackUp' && stuckupDate == null) {
-        stuckupDate = DateTime.now();
+
+      if (status == 'Struck Off' && struckOffDate == null) {
+        struckOffDate = DateTime.now();
       }
       if (status == 'Graduate' && graduationDate == null) {
         graduationDate = DateTime.now();
       }
-      
+
       final student = Student(
         id: widget.studentToEdit?.id,
         name: _nameController.text.trim(),
@@ -186,26 +189,26 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
         admissionDate: admissionDate,
         fee: fee,
         status: status,
-        stuckupDate: stuckupDate != null 
-            ? DateFormat('yyyy-MM-dd').format(stuckupDate) 
+        struckOffDate: struckOffDate != null
+            ? DateFormat('yyyy-MM-dd').format(struckOffDate)
             : 'none',
-        graduationDate: graduationDate != null 
-            ? DateFormat('yyyy-MM-dd').format(graduationDate) 
+        graduationDate: graduationDate != null
+            ? DateFormat('yyyy-MM-dd').format(graduationDate)
             : 'none',
-        leftDate: leftDate != null 
-            ? DateFormat('yyyy-MM-dd').format(leftDate) 
+        leftDate: leftDate != null
+            ? DateFormat('yyyy-MM-dd').format(leftDate)
             : 'none',
         classId: widget.studentToEdit?.classId ?? widget.classId,
-        imageUrl: _studentImageUrl,
       );
       // Debug print
-      print('Saving student: ' + student.toMap().toString());
-      print('Status value: ' + status);
+      debugPrint('Saving student: ${student.toMap()}');
+      debugPrint('classId: ${student.classId}');
+      debugPrint('Status value: $status');
 
       if (widget.studentToEdit != null) {
         // Update student record
         await _dbHelper.updateStudent(student.toMap(), student.id!);
-        
+
         // Also update admission record if student_id exists
         final studentId = widget.studentToEdit!.studentId;
         if (studentId != null) {
@@ -213,8 +216,8 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
           Map<String, dynamic>? admission;
           try {
             admission = admissionData.cast<Map<String, dynamic>>().firstWhere(
-              (a) => a['student_id'] == studentId,
-            );
+                  (a) => a['student_id'] == studentId,
+                );
           } catch (e) {
             admission = null;
           }
@@ -222,49 +225,56 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
             admission['status'] = status;
             // Set graduation date if status is graduate
             if (status.toLowerCase() == 'graduate') {
-              admission['graduation_date'] = DateTime.now().toIso8601String().split('T')[0];
+              admission['graduation_date'] =
+                  DateTime.now().toIso8601String().split('T')[0];
             }
             await _dbHelper.updateAdmission(admission, admission['id']);
           }
         }
-        
+
         // Add to auto-sync pending operations if offline
-        final autoSyncProvider = Provider.of<AutoSyncProvider>(context, listen: false);
+        final autoSyncProvider =
+            Provider.of<AutoSyncProvider>(context, listen: false);
         if (!autoSyncProvider.isOnline) {
-          await autoSyncProvider.addPendingOperation('student', student.toMap());
+          await autoSyncProvider.addPendingOperation(
+              'student', student.toMap());
         }
       } else {
         await _dbHelper.insertStudent(student.toMap());
-        
+
         // Add to auto-sync pending operations if offline
-        final autoSyncProvider = Provider.of<AutoSyncProvider>(context, listen: false);
+        final autoSyncProvider =
+            Provider.of<AutoSyncProvider>(context, listen: false);
         if (!autoSyncProvider.isOnline) {
-          await autoSyncProvider.addPendingOperation('student', student.toMap());
+          await autoSyncProvider.addPendingOperation(
+              'student', student.toMap());
         }
       }
-      
-      final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+
+      final languageProvider =
+          Provider.of<LanguageProvider>(context, listen: false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(languageProvider.isUrdu 
-            ? 'طالب علم کامیابی سے محفوظ کر دیا گیا'
-            : 'Student saved successfully'),
+          content: Text(languageProvider.isUrdu
+              ? 'طالب علم کامیابی سے محفوظ کر دیا گیا'
+              : 'Student saved successfully'),
           backgroundColor: Colors.green,
         ),
       );
-      
+
       if (widget.studentToEdit != null) {
         Navigator.pop(context, true);
       } else {
         _clearForm();
       }
     } catch (e) {
-      final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+      final languageProvider =
+          Provider.of<LanguageProvider>(context, listen: false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(languageProvider.isUrdu 
-            ? 'طالب علم شامل کرنے میں خرابی: $e'
-            : 'Error adding student: $e'),
+          content: Text(languageProvider.isUrdu
+              ? 'طالب علم شامل کرنے میں خرابی: $e'
+              : 'Error adding student: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -283,7 +293,7 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
     _statusController.clear();
     setState(() {
       _admissionDate = DateTime.now();
-      _stuckupDate = null;
+      _struckOffDate = null;
       _graduationDate = null;
       _leftDate = null;
       _statusController.text = 'Active'; // Reset to default
@@ -293,21 +303,36 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(languageProvider.isUrdu ? 'طلباء - ڈیٹا داخل کریں' : 'Students - Enter Data'),
+        title: Text(languageProvider.isUrdu
+            ? 'طلباء - ڈیٹا داخل کریں'
+            : 'Students - Enter Data'),
         backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
       ),
       body: Container(
@@ -353,7 +378,9 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                           ),
                           SizedBox(height: 16),
                           Text(
-                            languageProvider.isUrdu ? 'نیا طالب علم شامل کریں' : 'Add New Student',
+                            languageProvider.isUrdu
+                                ? 'نیا طالب علم شامل کریں'
+                                : 'Add New Student',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -363,9 +390,9 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            languageProvider.isUrdu 
-                              ? 'طالب علم کی معلومات درج کریں'
-                              : 'Enter student information',
+                            languageProvider.isUrdu
+                                ? 'طالب علم کی معلومات درج کریں'
+                                : 'Enter student information',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -376,49 +403,14 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 30),
-                  
+
                   // Student Image Card
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white,
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            languageProvider.isUrdu ? 'طالب علم کی تصویر' : 'Student Photo',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1976D2),
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Center(
-                            child: StudentImagePicker(
-                              onImageSelected: (imageUrl) {
-                                setState(() {
-                                  _studentImageUrl = imageUrl;
-                                });
-                              },
-                              initialImageUrl: _studentImageUrl,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
+                  // Remove _studentImageUrl variable, assignments, and StudentImagePicker widget
+
                   SizedBox(height: 20),
-                  
+
                   // Form Fields Card
                   Card(
                     elevation: 8,
@@ -437,93 +429,113 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                           _buildTextField(
                             controller: _nameController,
                             label: languageProvider.isUrdu ? 'نام' : 'Name',
-                            hint: languageProvider.isUrdu ? 'طالب علم کا نام' : 'Student Name',
+                            hint: languageProvider.isUrdu
+                                ? 'طالب علم کا نام'
+                                : 'Student Name',
                             icon: Icons.person,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return languageProvider.isUrdu 
-                                  ? 'نام درج کریں'
-                                  : 'Please enter name';
+                                return languageProvider.isUrdu
+                                    ? 'نام درج کریں'
+                                    : 'Please enter name';
                               }
                               return null;
                             },
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Father's Name Field
                           _buildTextField(
                             controller: _fatherNameController,
-                            label: languageProvider.isUrdu ? 'والد کا نام' : "Father's Name",
-                            hint: languageProvider.isUrdu ? 'والد کا نام' : "Father's Name",
+                            label: languageProvider.isUrdu
+                                ? 'والد کا نام'
+                                : "Father's Name",
+                            hint: languageProvider.isUrdu
+                                ? 'والد کا نام'
+                                : "Father's Name",
                             icon: Icons.person_outline,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Mobile Field
                           _buildTextField(
                             controller: _mobileController,
-                            label: languageProvider.isUrdu ? 'موبائل نمبر' : 'Mobile Number',
-                            hint: languageProvider.isUrdu ? 'موبائل نمبر' : 'Mobile Number',
+                            label: languageProvider.isUrdu
+                                ? 'موبائل نمبر'
+                                : 'Mobile Number',
+                            hint: languageProvider.isUrdu
+                                ? 'موبائل نمبر'
+                                : 'Mobile Number',
                             icon: Icons.phone,
                             keyboardType: TextInputType.phone,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Fee Field
                           _buildTextField(
                             controller: _feeController,
                             label: languageProvider.isUrdu ? 'فیس' : 'Fee',
-                            hint: languageProvider.isUrdu ? 'فیس کی رقم' : 'Fee Amount',
+                            hint: languageProvider.isUrdu
+                                ? 'فیس کی رقم'
+                                : 'Fee Amount',
                             icon: Icons.money,
                             keyboardType: TextInputType.number,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Status Field with Dropdown
                           _buildStatusDropdown(),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Admission Date Field
                           _buildDateField(
-                            label: languageProvider.isUrdu ? 'داخلہ کی تاریخ' : 'Admission Date',
+                            label: languageProvider.isUrdu
+                                ? 'داخلہ کی تاریخ'
+                                : 'Admission Date',
                             value: _admissionDate,
                             onTap: _pickDate,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
-                          // Stuckup Date Field
+
+                          // Struck Off Date Field
                           _buildDateField(
-                            label: languageProvider.isUrdu ? 'بڑھنے کی تاریخ' : 'Stuckup Date',
-                            value: _stuckupDate,
-                            onTap: _pickStuckupDate,
+                            label: languageProvider.isUrdu
+                                ? 'خارج ہونے کی تاریخ'
+                                : 'Struck Off Date',
+                            value: _struckOffDate,
+                            onTap: _pickStruckOffDate,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Graduation Date Field
                           _buildDateField(
-                            label: languageProvider.isUrdu ? 'گریجویشن کی تاریخ' : 'Graduation Date',
+                            label: languageProvider.isUrdu
+                                ? 'گریجویشن کی تاریخ'
+                                : 'Graduation Date',
                             value: _graduationDate,
                             onTap: _pickGraduationDate,
                           ),
-                          
+
                           SizedBox(height: 20),
-                          
+
                           // Left Date Field
                           _buildDateField(
-                            label: languageProvider.isUrdu ? 'چھوڑنے کی تاریخ' : 'Left Date',
+                            label: languageProvider.isUrdu
+                                ? 'چھوڑنے کی تاریخ'
+                                : 'Left Date',
                             value: _leftDate,
                             onTap: _pickLeftDate,
                           ),
-                          
+
                           SizedBox(height: 40),
-                          
+
                           // Add Button
                           SizedBox(
                             width: double.infinity,
@@ -539,26 +551,34 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                                 elevation: 8,
                               ),
                               child: _isLoading
-                                ? CircularProgressIndicator(color: Colors.white)
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(widget.studentToEdit != null ? Icons.save : Icons.add),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        widget.studentToEdit != null 
-                                          ? languageProvider.isUrdu ? 'محفوظ کریں' : 'Save'
-                                          : languageProvider.isUrdu ? 'شامل کریں' : 'Add Student',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                                  ? CircularProgressIndicator(
+                                      color: Colors.white)
+                                  : Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(widget.studentToEdit != null
+                                            ? Icons.save
+                                            : Icons.add),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          widget.studentToEdit != null
+                                              ? languageProvider.isUrdu
+                                                  ? 'محفوظ کریں'
+                                                  : 'Save'
+                                              : languageProvider.isUrdu
+                                                  ? 'شامل کریں'
+                                                  : 'Add Student',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
+                                      ],
+                                    ),
                             ),
                           ),
-                          
+
                           SizedBox(height: 20),
                         ],
                       ),
@@ -574,13 +594,20 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
   }
 
   Widget _buildStatusDropdown() {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     final statusOptions = [
       {'value': 'Active', 'label': languageProvider.isUrdu ? 'فعال' : 'Active'},
-      {'value': 'StackUp', 'label': languageProvider.isUrdu ? 'بڑھا ہوا' : 'StackUp'},
-      {'value': 'Graduate', 'label': languageProvider.isUrdu ? 'گریجویٹ' : 'Graduate'},
+      {
+        'value': 'Struck Off',
+        'label': languageProvider.isUrdu ? 'خارج شدہ' : 'Struck Off'
+      },
+      {
+        'value': 'Graduate',
+        'label': languageProvider.isUrdu ? 'گریجویٹ' : 'Graduate'
+      },
     ];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -600,11 +627,14 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
             color: Colors.grey[50],
           ),
           child: DropdownButtonFormField<String>(
-            value: _statusController.text.isEmpty ? 'Active' : _statusController.text,
+            initialValue: _statusController.text.isEmpty
+                ? 'Active'
+                : _statusController.text,
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.assignment, color: Color(0xFF1976D2)),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
             items: statusOptions.map((option) {
               return DropdownMenuItem<String>(
@@ -631,7 +661,8 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -710,9 +741,9 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                 Icon(Icons.calendar_today, color: Color(0xFF1976D2)),
                 SizedBox(width: 12),
                 Text(
-                  value != null 
-                    ? DateFormat('yyyy-MM-dd').format(value)
-                    : 'Select Date',
+                  value != null
+                      ? DateFormat('yyyy-MM-dd').format(value)
+                      : 'Select Date',
                   style: TextStyle(
                     fontSize: 16,
                     color: value != null ? Colors.black87 : Colors.grey[600],
@@ -735,4 +766,4 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
     _statusController.dispose();
     super.dispose();
   }
-} 
+}

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import '../lib/widgets/voice_input_button.dart';
+import 'package:naumaniya/widgets/voice_input_button.dart';
 
 class MockSpeechToText extends Mock implements stt.SpeechToText {}
 
@@ -10,13 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('VoiceInputButton', () {
-    late MockSpeechToText mockSpeech;
-    late String recognizedText;
-
-    setUp(() {
-      mockSpeech = MockSpeechToText();
-      recognizedText = '';
-    });
+    setUp(() {});
 
     Future<void> pumpButton(WidgetTester tester) async {
       await tester.pumpWidget(
@@ -24,7 +18,7 @@ void main() {
           home: Scaffold(
             body: VoiceInputButton(
               isUrdu: false,
-              onResult: (text) => recognizedText = text,
+              onResult: (text) => {},
             ),
           ),
         ),
@@ -52,4 +46,4 @@ void main() {
       // In a real test, you would inject the mock and simulate error callback
     });
   });
-} 
+}

@@ -14,7 +14,8 @@ class ResponsiveUtils {
     return MediaQuery.of(context).size.width >= 1200;
   }
 
-  static double getResponsiveFontSize(BuildContext context, {
+  static double getResponsiveFontSize(
+    BuildContext context, {
     double mobile = 14,
     double tablet = 16,
     double desktop = 18,
@@ -24,7 +25,8 @@ class ResponsiveUtils {
     return desktop;
   }
 
-  static double getResponsivePadding(BuildContext context, {
+  static double getResponsivePadding(
+    BuildContext context, {
     double mobile = 16,
     double tablet = 20,
     double desktop = 24,
@@ -34,7 +36,8 @@ class ResponsiveUtils {
     return desktop;
   }
 
-  static double getResponsiveSpacing(BuildContext context, {
+  static double getResponsiveSpacing(
+    BuildContext context, {
     double mobile = 8,
     double tablet = 12,
     double desktop = 16,
@@ -44,7 +47,8 @@ class ResponsiveUtils {
     return desktop;
   }
 
-  static double getResponsiveIconSize(BuildContext context, {
+  static double getResponsiveIconSize(
+    BuildContext context, {
     double mobile = 20,
     double tablet = 24,
     double desktop = 28,
@@ -54,21 +58,25 @@ class ResponsiveUtils {
     return desktop;
   }
 
-  static EdgeInsets getResponsiveEdgeInsets(BuildContext context, {
+  static EdgeInsets getResponsiveEdgeInsets(
+    BuildContext context, {
     double mobile = 16,
     double tablet = 20,
     double desktop = 24,
   }) {
-    final padding = getResponsivePadding(context, mobile: mobile, tablet: tablet, desktop: desktop);
+    final padding = getResponsivePadding(context,
+        mobile: mobile, tablet: tablet, desktop: desktop);
     return EdgeInsets.all(padding);
   }
 
-  static BorderRadius getResponsiveBorderRadius(BuildContext context, {
+  static BorderRadius getResponsiveBorderRadius(
+    BuildContext context, {
     double mobile = 12,
     double tablet = 16,
     double desktop = 20,
   }) {
-    final radius = isMobile(context) ? mobile : (isTablet(context) ? tablet : desktop);
+    final radius =
+        isMobile(context) ? mobile : (isTablet(context) ? tablet : desktop);
     return BorderRadius.circular(radius);
   }
 
@@ -96,7 +104,8 @@ class ResponsiveUtils {
     return 160;
   }
 
-  static TextStyle getResponsiveTextStyle(BuildContext context, {
+  static TextStyle getResponsiveTextStyle(
+    BuildContext context, {
     double? fontSize,
     FontWeight? fontWeight,
     Color? color,
@@ -110,14 +119,15 @@ class ResponsiveUtils {
     );
   }
 
-  static BoxShadow getResponsiveBoxShadow(BuildContext context, {
+  static BoxShadow getResponsiveBoxShadow(
+    BuildContext context, {
     Color? color,
     double? blurRadius,
     Offset? offset,
   }) {
     final isMobileDevice = isMobile(context);
     return BoxShadow(
-      color: color ?? Colors.black.withOpacity(0.1),
+      color: color ?? Colors.black.withAlpha((0.1 * 255).toInt()),
       blurRadius: blurRadius ?? (isMobileDevice ? 8 : 12),
       offset: offset ?? Offset(0, isMobileDevice ? 2 : 4),
     );
@@ -244,4 +254,4 @@ class ResponsiveUtils {
       ),
     );
   }
-} 
+}

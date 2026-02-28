@@ -20,10 +20,20 @@ class ClassModel {
   }
 
   factory ClassModel.fromMap(Map<String, dynamic> map) {
+    // Handle created_at conversion from DateTime to String
+    String createdAtStr;
+    if (map['created_at'] is DateTime) {
+      createdAtStr = (map['created_at'] as DateTime).toIso8601String();
+    } else if (map['created_at'] is String) {
+      createdAtStr = map['created_at'];
+    } else {
+      createdAtStr = DateTime.now().toIso8601String();
+    }
+    
     return ClassModel(
       id: map['id'],
       name: map['name'] ?? '',
-      createdAt: map['created_at'] ?? '',
+      createdAt: createdAtStr,
       isSaved: true,
     );
   }

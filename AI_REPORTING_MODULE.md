@@ -38,7 +38,7 @@ The AI system understands various query patterns:
 #### Student Queries
 - "Show all active students"
 - "Show students admitted in January 2024"
-- "Show students with status stuckup"
+- "Show students with status struck off"
 - "Show students in class A"
 - "Show students with fee more than 100"
 - "Show total number of students"

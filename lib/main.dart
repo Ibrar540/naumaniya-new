@@ -1,33 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'services/database_service.dart';
 import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/device_approval_screen.dart';
-import 'screens/account_settings_screen.dart';
 import 'screens/home_screen.dart';
-import 'providers/firestore_data_provider.dart';
 import 'providers/language_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/auto_sync_provider.dart';
+import 'providers/budget_provider.dart';
+import 'providers/teacher_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:workmanager/workmanager.dart';
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    try {
+      // Initialize Neon Database for background tasks
+      await DatabaseService.initialize();
+      
+      // Then initialize auto sync service
+      return Future.value(true);
+    } catch (e) {
+      // Log error but don't crash
+      debugPrint('Background task error: $e');
+      return Future.value(false);
+    }
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
+  // Initialize Neon Database
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    await DatabaseService.initialize();
+    debugPrint('✅ Neon database initialized successfully');
   } catch (e) {
-    // print('Firebase initialization error: $e'); // Removed print
+    debugPrint('❌ Neon database initialization error: $e');
   }
   
+  // Only initialize Workmanager on mobile platforms
+  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    // Register periodic sync task
+    await Workmanager().registerPeriodicTask(
+      'budgetSyncTask',
+      'budgetSyncTask',
+      frequency: Duration(hours: 1),
+      initialDelay: Duration(minutes: 5),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
+    );
+  }
+
   if (kIsWeb) {
     await _fixStudentStatusWeb();
   }
@@ -36,10 +65,12 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => FirestoreDataProvider()),
+        // ChangeNotifierProvider(create: (_) => FirestoreDataProvider()), // Removed - uses Firebase
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AutoSyncProvider()),
+        ChangeNotifierProvider(create: (_) => BudgetProvider()), // <-- Added
+        ChangeNotifierProvider(create: (_) => TeacherProvider()),
       ],
       child: MyApp(),
     ),
@@ -66,20 +97,21 @@ Future<void> _fixStudentStatusWeb() async {
         // print('Updated web students with empty status to "Active".'); // Removed print
       }
     }
-  } catch (e, st) {
+  } catch (e) {
     // print('Error in _fixStudentStatusWeb: $e\n$st'); // Removed print
   }
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Consumer2<ThemeProvider, LanguageProvider>(
       builder: (context, themeProvider, languageProvider, _) {
         return Directionality(
-          textDirection: languageProvider.isUrdu ? TextDirection.rtl : TextDirection.ltr,
+          textDirection:
+              languageProvider.isUrdu ? TextDirection.rtl : TextDirection.ltr,
           child: MaterialApp(
             title: 'Naumaniya',
             theme: ThemeData(
@@ -121,7 +153,8 @@ class MyApp extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Color(0xFF1976D2), width: 2),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
               cardTheme: CardThemeData(
                 elevation: 2,
@@ -200,7 +233,8 @@ class MyApp extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Color(0xFF42A5F5), width: 2),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
               cardTheme: CardThemeData(
                 elevation: 2,
@@ -245,10 +279,10 @@ class MyApp extends StatelessWidget {
             initialRoute: '/',
             routes: {
               '/': (context) => SplashScreen(),
-              '/login': (context) => LoginScreen(),
+              // '/login': (context) => LoginScreen(), // Removed - uses Firebase Auth
               '/home': (context) => HomeScreen(),
-              '/device-approval': (context) => DeviceApprovalScreen(email: ''),
-              '/account-settings': (context) => AccountSettingsScreen(),
+              // '/device-approval': (context) => DeviceApprovalScreen(email: ''), // Removed - uses Firebase Auth
+              // '/account-settings': (context) => AccountSettingsScreen(), // Removed - uses Firebase Auth
             },
             debugShowCheckedModeBanner: false,
           ),
@@ -267,4 +301,4 @@ class MyApp extends StatelessWidget {
 //       body: Center(child: Text('Welcome! You are logged in and your device is approved.')),
 //     );
 //   }
-// } 
+// }

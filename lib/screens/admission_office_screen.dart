@@ -4,6 +4,8 @@ import 'admission_view_screen.dart';
 import 'home_screen.dart';
 
 class AdmissionOfficeScreen extends StatelessWidget {
+  const AdmissionOfficeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,15 +13,28 @@ class AdmissionOfficeScreen extends StatelessWidget {
         title: Text('Admission Office'),
         backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
       ),
       body: Container(
@@ -100,7 +115,7 @@ class AdmissionOfficeScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha((0.08 * 255).toInt()),
               blurRadius: 12,
               offset: Offset(0, 4),
             ),
@@ -158,4 +173,4 @@ class AdmissionOfficeScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

@@ -6,6 +6,7 @@ class AIQueryResult {
   final String summary;
   final List<AIAction> actions;
   final Map<String, dynamic> filters;
+  final List<String> suggestions;
 
   AIQueryResult({
     required this.module,
@@ -13,6 +14,7 @@ class AIQueryResult {
     required this.summary,
     this.actions = const [],
     this.filters = const {},
+    this.suggestions = const [],
   });
 }
 

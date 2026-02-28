@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
-import '../db/database_helper.dart';
+import '../services/database_service.dart';
 import '../models/class_model.dart';
 import 'create_class_screen.dart';
 import 'class_students_screen.dart';
@@ -21,7 +21,7 @@ class ClassesListScreen extends StatefulWidget {
 }
 
 class _ClassesListScreenState extends State<ClassesListScreen> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  // DatabaseService is static, no instance needed
   final EnhancedSearchService _searchService = EnhancedSearchService();
   List<ClassModel> _classes = [];
   List<ClassModel> _filteredClasses = [];
@@ -53,14 +53,19 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
   Future<void> _loadClasses() async {
     setState(() { _isLoading = true; });
     try {
-      final data = await _dbHelper.getClasses();
+      print('🔍 Loading classes from database...');
+      final data = await DatabaseService.getAllClasses();
+      print('✅ Loaded ${data.length} classes from database');
+      if (data.isNotEmpty) {
+        print('📋 First class: ${data.first.name} (ID: ${data.first.id})');
+      }
       setState(() {
-        _classes = data.map((item) => ClassModel.fromMap(item)).toList();
+        _classes = data;
         _filteredClasses = _classes;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading classes: $e');
+      print('❌ Error loading classes: $e');
       setState(() { _isLoading = false; });
     }
   }
@@ -193,7 +198,7 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
 
     if (confirmed == true) {
       try {
-        await _dbHelper.deleteClass(classModel.id!);
+        await DatabaseService.deleteClass(classModel.id!);
         await _loadClasses();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -216,6 +221,128 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
     }
   }
 
+  Future<void> _markClassAsGraduate(ClassModel classModel) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(languageProvider.isUrdu ? 'گریجویٹ کے طور پر نشان زد کریں' : 'Mark as Graduate'),
+        content: Text(languageProvider.isUrdu 
+          ? 'کیا آپ واقعی ${classModel.name} کے تمام فعال طلباء کو گریجویٹ کے طور پر نشان زد کرنا چاہتے ہیں؟'
+          : 'Are you sure you want to mark all active students of ${classModel.name} as Graduate?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(languageProvider.getText('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(languageProvider.isUrdu ? 'نشان زد کریں' : 'Mark'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Get all students in this class
+        final allStudents = await DatabaseService.getAllStudents();
+        final classStudents = allStudents.where((data) {
+          final studentClass = data['class']?.toString().trim() ?? '';
+          final status = (data['status'] ?? '').toString().trim().toLowerCase();
+          return studentClass == classModel.name && status == 'active';
+        }).toList();
+
+        // Update each student's status to Graduate
+        for (var student in classStudents) {
+          await DatabaseService.updateAdmission(
+            student['id'].toString(),
+            {'status': 'Graduate'}
+          );
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu 
+              ? '${classStudents.length} طلباء کو گریجویٹ کے طور پر نشان زد کیا گیا'
+              : '${classStudents.length} students marked as Graduate'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu 
+              ? 'طلباء کو نشان زد کرنے میں خرابی'
+              : 'Error marking students'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _markClassAsStruckOff(ClassModel classModel) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(languageProvider.isUrdu ? 'خارج شدہ کے طور پر نشان زد کریں' : 'Mark as Struck Off'),
+        content: Text(languageProvider.isUrdu 
+          ? 'کیا آپ واقعی ${classModel.name} کے تمام فعال طلباء کو خارج شدہ کے طور پر نشان زد کرنا چاہتے ہیں؟'
+          : 'Are you sure you want to mark all active students of ${classModel.name} as Struck Off?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(languageProvider.getText('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(languageProvider.isUrdu ? 'نشان زد کریں' : 'Mark'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Get all students in this class
+        final allStudents = await DatabaseService.getAllStudents();
+        final classStudents = allStudents.where((data) {
+          final studentClass = data['class']?.toString().trim() ?? '';
+          final status = (data['status'] ?? '').toString().trim().toLowerCase();
+          return studentClass == classModel.name && status == 'active';
+        }).toList();
+
+        // Update each student's status to Struck Off
+        for (var student in classStudents) {
+          await DatabaseService.updateAdmission(
+            student['id'].toString(),
+            {'status': 'Struck Off'}
+          );
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu 
+              ? '${classStudents.length} طلباء کو خارج شدہ کے طور پر نشان زد کیا گیا'
+              : '${classStudents.length} students marked as Struck Off'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu 
+              ? 'طلباء کو نشان زد کرنے میں خرابی'
+              : 'Error marking students'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
@@ -228,15 +355,28 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
         ),
         backgroundColor: Color(0xFF1976D2),
         iconTheme: IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -504,14 +644,6 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
             PopupMenuButton<String>(
               onSelected: (value) async {
                 switch (value) {
-                  case 'view':
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ClassStudentsScreen(classModel: classModel),
-                      ),
-                    );
-                    break;
                   case 'edit':
                     await Navigator.push(
                       context,
@@ -524,26 +656,22 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
                   case 'delete':
                     await _deleteClass(classModel);
                     break;
+                  case 'graduate':
+                    await _markClassAsGraduate(classModel);
+                    break;
+                  case 'struck_off':
+                    await _markClassAsStruckOff(classModel);
+                    break;
                 }
               },
               itemBuilder: (context) => [
                 PopupMenuItem(
-                  value: 'view',
-                  child: Row(
-                    children: [
-                      Icon(Icons.visibility, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text(languageProvider.getText('view')),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
                   value: 'edit',
                   child: Row(
                     children: [
-                      Icon(Icons.edit, color: Colors.orange),
+                      Icon(Icons.edit, color: Colors.blue),
                       SizedBox(width: 8),
-                      Text(languageProvider.getText('edit')),
+                      Text(languageProvider.isUrdu ? 'ترمیم' : 'Edit'),
                     ],
                   ),
                 ),
@@ -553,7 +681,27 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
                     children: [
                       Icon(Icons.delete, color: Colors.red),
                       SizedBox(width: 8),
-                      Text(languageProvider.getText('delete')),
+                      Text(languageProvider.isUrdu ? 'حذف' : 'Delete'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'graduate',
+                  child: Row(
+                    children: [
+                      Icon(Icons.school, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(languageProvider.isUrdu ? 'گریجویٹ کے طور پر نشان زد کریں' : 'Mark as Graduate'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'struck_off',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cancel, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text(languageProvider.isUrdu ? 'خارج شدہ کے طور پر نشان زد کریں' : 'Mark as Struck Off'),
                     ],
                   ),
                 ),

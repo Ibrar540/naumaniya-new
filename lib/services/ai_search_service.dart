@@ -1,7 +1,7 @@
 import '../db/database_helper.dart';
 
 class AISearchService {
-  final DatabaseHelper _db = DatabaseHelper();
+  final DatabaseHelper _db = DatabaseHelper.instance;
   
   // Query understanding and processing
   Future<SearchResponse> processQuery(String query, {bool isUrdu = false}) async {
@@ -40,7 +40,7 @@ class AISearchService {
       }
       // Status filter
       String? statusFilter;
-      final statusKeywords = ['active', 'stuckup', 'graduated', 'left'];
+      final statusKeywords = ['active', 'struck off', 'graduated', 'left'];
       for (final status in statusKeywords) {
         if (lowerQuery.contains(status)) {
           statusFilter = status;
@@ -55,17 +55,17 @@ class AISearchService {
           final status = (adm['status']?.toString() ?? '').toLowerCase();
           final fee = double.tryParse(adm['fee']?.toString() ?? '') ?? 0;
           final admissionDateStr = adm['admission_date']?.toString() ?? '';
-          final stuckupDateStr = adm['stackup_date']?.toString() ?? '';
+          final struckOffDateStr = adm['struck_off_date']?.toString() ?? '';
           final graduationDateStr = adm['graduation_date']?.toString() ?? '';
-          DateTime? admissionDate, stuckupDate, graduationDate;
+          DateTime? admissionDate, struckOffDate, graduationDate;
           try { admissionDate = DateTime.parse(admissionDateStr); } catch (_) {}
-          try { stuckupDate = DateTime.parse(stuckupDateStr); } catch (_) {}
+          try { struckOffDate = DateTime.parse(struckOffDateStr); } catch (_) {}
           try { graduationDate = DateTime.parse(graduationDateStr); } catch (_) {}
           if (foundYear != null) {
             if (admissionDate == null || admissionDate.year > foundYear) continue;
             int endMonth = 12;
-            if (status == 'stuckup' && stuckupDate != null && stuckupDate.year == foundYear) {
-              endMonth = stuckupDate.month;
+            if (status == 'struck off' && struckOffDate != null && struckOffDate.year == foundYear) {
+              endMonth = struckOffDate.month;
             }
             if (status == 'graduated' && graduationDate != null && graduationDate.year == foundYear) {
               endMonth = graduationDate.month;
@@ -100,7 +100,7 @@ class AISearchService {
           if (foundYear != null) {
             if (startingDate == null || startingDate.year > foundYear) continue;
             int endMonth = 12;
-            if ((status == 'left' || status == 'stuckup') && leavingDate != null && leavingDate.year == foundYear) {
+            if ((status == 'left' || status == 'struck off') && leavingDate != null && leavingDate.year == foundYear) {
               endMonth = leavingDate.month;
             }
             int searchMonth = foundMonthNum ?? 12;

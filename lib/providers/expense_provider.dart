@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 
 class ExpenseProvider with ChangeNotifier {
-  List<Expense> _expenses = [];
+  final List<Expense> _expenses = [];
 
   List<Expense> get expenses => _expenses;
 

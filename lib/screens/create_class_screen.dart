@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/language_provider.dart';
-import '../db/database_helper.dart';
+import '../services/database_service.dart';
 import '../models/class_model.dart';
 import 'home_screen.dart';
 
@@ -18,7 +18,7 @@ class CreateClassScreen extends StatefulWidget {
 class _CreateClassScreenState extends State<CreateClassScreen> {
   final _formKey = GlobalKey<FormState>();
   final _classNameController = TextEditingController();
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  // DatabaseService is static, no instance needed
   bool _isLoading = false;
 
   @override
@@ -50,7 +50,12 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
 
       if (widget.classToEdit != null) {
         // Update existing class
-        await _dbHelper.updateClass(classData, widget.classToEdit!.id!);
+        final updatedClass = ClassModel(
+          id: widget.classToEdit!.id,
+          name: classData['name'],
+          createdAt: widget.classToEdit!.createdAt,
+        );
+        await DatabaseService.updateClass(updatedClass);
         final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -60,7 +65,13 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
         );
       } else {
         // Create new class
-        await _dbHelper.insertClass(classData);
+        final newClass = ClassModel(
+          name: classData['name'],
+          createdAt: DateTime.now().toIso8601String(),
+        );
+        print('📝 Creating new class: ${newClass.name}');
+        await DatabaseService.addClass(newClass);
+        print('✅ Class created successfully');
         final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -69,11 +80,10 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
           ),
         );
         _classNameController.clear();
+        Navigator.pop(context, true); // Return true to indicate success
       }
       
-      if (widget.classToEdit != null) {
-        Navigator.pop(context, true); // Return true to indicate success on update
-      }
+      // Navigation is now handled above for both create and update
     } catch (e) {
       final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -106,14 +116,28 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
         ),
         backgroundColor: Color(0xFF1976D2),
         iconTheme: IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
         actions: [
           IconButton(

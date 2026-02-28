@@ -1,61 +1,97 @@
-import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'dart:ui' as dart_ui;
 import 'package:intl/intl.dart';
-import '../db/database_helper.dart';
-import 'package:flutter/foundation.dart';
-import '../utils/file_utils.dart';
 import 'package:image_picker/image_picker.dart';
-import '../widgets/voice_input_button.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+
+import '../services/database_service.dart';
+import '../services/cloudinary_service.dart';
 import '../providers/language_provider.dart';
-import 'home_screen.dart';
+import '../widgets/voice_input_button.dart';
+import '../screens/home_screen.dart';
 
 class AdmissionFormScreen extends StatefulWidget {
   final Map<String, dynamic>? admission;
   final bool isEdit;
-  const AdmissionFormScreen({Key? key, this.admission, this.isEdit = false}) : super(key: key);
+
+  const AdmissionFormScreen({super.key, this.admission, this.isEdit = false});
+
   @override
-  _AdmissionFormScreenState createState() => _AdmissionFormScreenState();
+  AdmissionFormScreenState createState() => AdmissionFormScreenState();
 }
 
-class _AdmissionFormScreenState extends State<AdmissionFormScreen> {
+class AdmissionFormScreenState extends State<AdmissionFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  Uint8List? _studentImage;
+  File? _imageFile;
+  String? _imageUrl;
+
   final _studentNameController = TextEditingController();
   final _fatherNameController = TextEditingController();
   final _fatherMobileController = TextEditingController();
   final _addressController = TextEditingController();
   final _feeController = TextEditingController();
-  final _classController = TextEditingController();
+  String? _selectedClass;
+  List<Map<String, dynamic>> _classList = [];
   String? _selectedStatus;
-  final List<String> _statusOptions = ['Active', 'StackUp', 'Graduated'];
+  final List<String> _statusOptions = ['Active', 'Struck Off', 'Graduate'];
+  String? _selectedResidencyStatus;
   DateTime? _admissionDate;
-  DateTime? _stackupDate;
+  DateTime? _struckOffDate;
   DateTime? _graduationDate;
   bool _isLoading = false;
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-  int? _editId;
+
+  // DatabaseService is static, no instance needed
+  final CloudinaryService _cloudinaryService = CloudinaryService();
 
   @override
   void initState() {
     super.initState();
+    _loadClasses();
     if (widget.isEdit && widget.admission != null) {
       final adm = widget.admission!;
-      _editId = adm['id'];
       _studentNameController.text = adm['student_name'] ?? '';
       _fatherNameController.text = adm['father_name'] ?? '';
       _fatherMobileController.text = adm['father_mobile'] ?? '';
       _addressController.text = adm['address'] ?? '';
       _feeController.text = adm['fee']?.toString() ?? '';
-      _classController.text = adm['class'] ?? '';
+      _selectedClass = adm['class'] ?? '';
       _selectedStatus = adm['status'];
-      if (adm['admission_date'] != null && adm['admission_date'] != 'none') _admissionDate = DateTime.tryParse(adm['admission_date']);
-      if (adm['stackup_date'] != null && adm['stackup_date'] != 'none') _stackupDate = DateTime.tryParse(adm['stackup_date']);
-      if (adm['graduation_date'] != null && adm['graduation_date'] != 'none') _graduationDate = DateTime.tryParse(adm['graduation_date']);
-      if (adm['image'] != null) {
-        try {
-          _studentImage = Uint8List.fromList(List<int>.from(adm['image']));
-        } catch (_) {}
+      _selectedResidencyStatus = adm['residency_status'] ?? 'Resident';
+      _imageUrl = adm['image'];
+
+      if (adm['admission_date'] != null && adm['admission_date'] != 'none') {
+        _admissionDate = DateTime.tryParse(adm['admission_date']);
+      }
+      if (adm['struck_off_date'] != null && adm['struck_off_date'] != 'none') {
+        _struckOffDate = DateTime.tryParse(adm['struck_off_date']);
+      }
+      if (adm['graduation_date'] != null && adm['graduation_date'] != 'none') {
+        _graduationDate = DateTime.tryParse(adm['graduation_date']);
+      }
+    }
+  }
+
+  Future<void> _loadClasses() async {
+    try {
+      final classes = await DatabaseService.getAllClasses();
+      if (kDebugMode) {
+        print('Loaded ${classes.length} classes');
+      }
+      if (mounted) {
+        setState(() {
+          _classList = classes.map((c) => {'id': c.id, 'name': c.name}).toList();
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading classes: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load classes: $e')),
+        );
       }
     }
   }
@@ -67,134 +103,58 @@ class _AdmissionFormScreenState extends State<AdmissionFormScreen> {
     _fatherMobileController.dispose();
     _addressController.dispose();
     _feeController.dispose();
-    _classController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImageFromCamera() async {
-    if (kIsWeb) {
-      // On web, camera access is limited - show message and offer gallery
-      final useGallery = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Camera Not Available'),
-          content: Text('Camera access is limited in web browsers. Would you like to select an image from your gallery instead?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Use Gallery'),
-            ),
-          ],
-        ),
-      );
-      
-      if (useGallery == true) {
-        _pickImageFromGallery();
-      }
-    } else {
-      // Use standard ImagePicker for mobile
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.camera);
-      if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        setState(() {
-          _studentImage = bytes;
-        });
-      }
-    }
-  }
-
-  Future<void> _pickImageFromGallery() async {
-    if (kIsWeb) {
-      var uploadInput = FileUtils.createFileUploadInput();
-      uploadInput.accept = 'image/*';
-      uploadInput.click();
-      uploadInput.onChange.listen((event) {
-        final file = uploadInput.files?.first;
-        if (file != null) {
-          final reader = FileUtils.createFileReader();
-          reader.readAsArrayBuffer(file);
-          reader.onLoadEnd.listen((event) {
-            setState(() {
-              _studentImage = reader.result as Uint8List;
-            });
-          });
-        }
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
       });
-    } else {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        setState(() {
-          _studentImage = bytes;
-        });
-      }
-    }
-  }
-
-  Future<void> _pasteImage() async {
-    // Web clipboard paste (if supported)
-    if (kIsWeb) {
-      // Not all browsers support clipboard image paste
-      // This is a placeholder for future implementation
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Paste from clipboard is not supported in this browser.')),
-      );
     }
   }
 
   void _showImagePickerMenu() {
+    final languageProvider =
+        Provider.of<LanguageProvider>(context, listen: false);
+    final isUrdu = languageProvider.isUrdu;
+
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            if (!kIsWeb) ListTile(
-              leading: Icon(Icons.camera_alt),
-              title: Text('Take Photo'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromCamera();
-              },
-            ),
-            if (kIsWeb) ListTile(
-              leading: Icon(Icons.camera_alt),
-              title: Text('Take Photo (Limited on Web)'),
-              subtitle: Text('Will redirect to gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromCamera();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.photo_library),
-              title: Text('Upload from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImageFromGallery();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.paste),
-              title: Text('Paste Image'),
-              subtitle: Text(kIsWeb ? 'Not supported in this browser' : 'Paste from clipboard'),
-              onTap: () {
-                Navigator.pop(context);
-                _pasteImage();
-              },
-            ),
-          ],
+        child: Directionality(
+          textDirection:
+              isUrdu ? dart_ui.TextDirection.rtl : dart_ui.TextDirection.ltr,
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: Text(isUrdu ? 'تصویر لیں' : 'Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: Text(
+                    isUrdu ? 'گیلری سے اپ لوڈ کریں' : 'Upload from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _pickDate(Function(DateTime) onPicked, {DateTime? initialDate}) async {
+  Future<void> _pickDate(Function(DateTime) onPicked,
+      {DateTime? initialDate}) async {
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate ?? DateTime.now(),
@@ -208,380 +168,458 @@ class _AdmissionFormScreenState extends State<AdmissionFormScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
-  void _saveAdmission() async {
+  Future<void> _showClassSelectionDialog(BuildContext context, bool isUrdu) async {
+    if (_classList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isUrdu ? 'پہلے کلاسیں بنائیں' : 'Create classes first'),
+        ),
+      );
+      return;
+    }
+
+    String? tempSelectedClass = _selectedClass;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(isUrdu ? 'کلاس منتخب کریں' : 'Select Class'),
+              content: DropdownButtonFormField<String>(
+                value: tempSelectedClass,
+                items: _classList.map((classItem) {
+                  return DropdownMenuItem<String>(
+                    value: classItem['name'],
+                    child: Text(classItem['name']),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setDialogState(() {
+                    tempSelectedClass = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  labelText: isUrdu ? 'کلاس' : 'Class',
+                  border: OutlineInputBorder(),
+                ),
+                hint: Text(isUrdu ? 'کلاس منتخب کریں' : 'Select a class'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(isUrdu ? 'منسوخ' : 'Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedClass = tempSelectedClass;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: Text(isUrdu ? 'منتخب کریں' : 'Select'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveAdmission() async {
     if (!_formKey.currentState!.validate()) {
-      _showError('Please fill all required fields correctly.');
       return;
     }
-    if (_classController.text.trim().isEmpty) {
-      _showError('Class is required.');
-      return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final className = _selectedClass ?? '';
+
+    // --- Start of Diagnostic Logging ---
+    if (kDebugMode) {
+      print('--- Saving Admission Data ---');
+      print('Class Name: $className');
     }
-    // Check if class exists
-    final className = _classController.text.trim();
-    final classData = await _dbHelper.getClassByName(className);
-    if (classData == null) {
-      _showError('The class ($className) does not exist. Please create it first.');
-      return;
-    }
-    final classId = classData['id'];
-    // Generate or reuse student_id
-    String studentId = widget.isEdit && widget.admission != null && widget.admission!['student_id'] != null
-      ? widget.admission!['student_id']
-      : DateTime.now().millisecondsSinceEpoch.toString();
-    // Get next roll_no if new, else reuse
-    int rollNo = widget.isEdit && widget.admission != null && widget.admission!['roll_no'] != null
-      ? widget.admission!['roll_no']
-      : await _dbHelper.getNextRollNo(classId);
-    // Graduation date after admission date validation
-    if (_graduationDate != null && _admissionDate != null && _graduationDate!.isBefore(_admissionDate!)) {
-      _showError('Graduation date must be after admission date.');
-      return;
-    }
-    setState(() { _isLoading = true; });
-    final name = _studentNameController.text.trim();
-    final fatherName = _fatherNameController.text.trim().isEmpty ? 'none' : _fatherNameController.text.trim();
-    final fatherMobile = _fatherMobileController.text.trim().isEmpty ? 'none' : _fatherMobileController.text.trim();
-    final address = _addressController.text.trim().isEmpty ? 'none' : _addressController.text.trim();
-    final fee = _feeController.text.trim().isEmpty ? 0 : int.tryParse(_feeController.text.trim()) ?? 0;
-    final status = (_selectedStatus == null || _selectedStatus!.isEmpty) ? 'Active' : _selectedStatus;
-    final admissionDate = _admissionDate != null ? DateFormat('yyyy-MM-dd').format(_admissionDate!) : DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final stackupDate = _stackupDate != null ? DateFormat('yyyy-MM-dd').format(_stackupDate!) : 'none';
-    final graduationDate = _graduationDate != null ? DateFormat('yyyy-MM-dd').format(_graduationDate!) : 'none';
-    // Admission record
-    final Map<String, dynamic> admission = {
-      'student_id': studentId,
-      'roll_no': rollNo,
-      'image': _studentImage,
-      'student_name': name,
-      'father_name': fatherName,
-      'father_mobile': fatherMobile,
-      'address': address,
-      'fee': fee,
-      'class': className,
-      'status': status,
-      'admission_date': admissionDate,
-      'stackup_date': stackupDate == 'none' ? null : stackupDate,
-      'graduation_date': graduationDate == 'none' ? null : graduationDate,
-    };
-    // Student record
-    final Map<String, dynamic> student = {
-      'student_id': studentId,
-      'roll_no': rollNo,
-      'name': name,
-      'fatherName': fatherName,
-      'mobile': fatherMobile,
-      'admissionDate': admissionDate,
-      'fee': fee,
-      'status': status,
-      'stuckupDate': stackupDate == 'none' ? null : stackupDate,
-      'classId': classId,
-    };
+    // --- End of Diagnostic Logging ---
+
     try {
-      if (widget.isEdit && widget.admission != null) {
-        // Update both tables
-        if (kIsWeb) {
-          // Admission
-          final admissions = await _dbHelper.getFromPrefs('admission_table');
-          final idx = admissions.indexWhere((a) => a['student_id'] == studentId);
-          if (idx != -1) {
-            admission['id'] = admissions[idx]['id'];
-            admissions[idx] = admission;
-            await _dbHelper.saveToPrefs('admission_table', admissions);
-          }
-          // Student (update for both Active and Graduated status)
-          if (status.toString().toLowerCase() == 'active' || status.toString().toLowerCase() == 'graduated') {
-            final students = await _dbHelper.getFromPrefs('students');
-            final sidx = students.indexWhere((s) => s['student_id'] == studentId);
-            if (sidx != -1) {
-              student['id'] = students[sidx]['id'];
-              students[sidx] = student;
-              await _dbHelper.saveToPrefs('students', students);
-            }
-          }
-        } else {
-          final dbClient = await _dbHelper.db;
-          await dbClient.update('admission_table', admission, where: 'student_id = ?', whereArgs: [studentId]);
-          // Student (update for both Active and Graduated status)
-          if (status.toString().toLowerCase() == 'active' || status.toString().toLowerCase() == 'graduated') {
-            await dbClient.update('students', student, where: 'student_id = ?', whereArgs: [studentId]);
-          }
-        }
-        _showSuccess('Admission and student record updated!');
-      } else {
-        // Insert admission always
-        await _dbHelper.insertAdmission(admission);
-        // Insert student only if status is Active
-        if (status.toString().toLowerCase() == 'active') {
-          if (kIsWeb) {
-            final students = await _dbHelper.getFromPrefs('students');
-            student['id'] = await _dbHelper.getNextId('students');
-            students.add(student);
-            await _dbHelper.saveToPrefs('students', students);
-          } else {
-            final dbClient = await _dbHelper.db;
-            await dbClient.insert('students', student);
-          }
-        }
-        _showSuccess('Admission record saved!');
+      // Note: Class management is handled in the database
+      // For now, we'll just save the student with the class name
+
+      if (kDebugMode) {
+        print('Saving student with class: $className');
       }
-      Navigator.pop(context, true);
+
+      final studentName = _studentNameController.text.trim();
+      final fatherName = _fatherNameController.text.trim();
+      final mobile = _fatherMobileController.text.trim();
+
+      String? imageUrl;
+      if (_imageFile != null) {
+        imageUrl = await _cloudinaryService.uploadImage(_imageFile!);
+      } else {
+        imageUrl = _imageUrl;
+      }
+
+      final studentData = {
+        'student_name': studentName,
+        'father_name': fatherName,
+        'mobile': mobile,
+        'class': className,
+        'fee': _feeController.text.trim(),
+        'status': _selectedStatus,
+        'residency_status': _selectedResidencyStatus ?? 'Resident',
+        'admission_date': _admissionDate?.toIso8601String().split('T')[0],
+        'struck_off_date': _struckOffDate?.toIso8601String().split('T')[0],
+        'graduation_date': _graduationDate?.toIso8601String().split('T')[0],
+        'picture_url': imageUrl,
+      };
+
+      if (widget.admission != null) {
+        // Update existing admission
+        await DatabaseService.updateAdmission(
+          widget.admission!['id'].toString(),
+          studentData,
+        );
+      } else {
+        // Add new admission
+        await DatabaseService.addAdmission(studentData);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admission saved successfully!')),
+        );
+        Navigator.pop(context, true);
+      }
     } catch (e) {
-      _showError('Error saving admission/student: $e');
+      if (kDebugMode) {
+        print('Error saving admission: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save admission: $e')),
+        );
+      }
     } finally {
-      setState(() { _isLoading = false; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEdit ? 'Edit Admission' : 'New Admission'),
-        backgroundColor: Color(0xFF1976D2),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
-        ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green.shade100, Colors.green.shade200],
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        final isUrdu = languageProvider.isUrdu;
+        
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(widget.isEdit 
+                ? (isUrdu ? 'داخلہ میں ترمیم' : 'Edit Admission')
+                : (isUrdu ? 'نیا داخلہ' : 'New Admission')),
+            backgroundColor: const Color(0xFF1976D2),
+            foregroundColor: Colors.white,
+            automaticallyImplyLeading: false,
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.home),
+                  onPressed: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => HomeScreen()),
+                      (route) => false,
+                    );
+                  },
+                  tooltip: isUrdu ? 'ہوم' : 'Home',
+                  padding: EdgeInsets.zero,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.pop(context),
+                  tooltip: isUrdu ? 'واپس' : 'Back',
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            leadingWidth: 100,
           ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header Card
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white,
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(Icons.person_add, size: 60, color: Color(0xFF1976D2)),
-                          SizedBox(height: 16),
-                          Text(
-                            widget.isEdit ? 'Edit Admission Record' : 'New Admission Record',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1976D2),
-                            ),
-                            textAlign: TextAlign.center,
+          body: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.green.shade100, Colors.green.shade200],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white,
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Please fill in all required fields',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  // Form Fields Card
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    child: Container(
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white,
-                      ),
-                      child: Column(
-                        children: [
-                          // 1. Student Name
-                          _buildTextField(
-                            _studentNameController,
-                            'Student Name',
-                            'Enter student name',
-                            Icons.person,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter student name';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 20),
-                          // 2. Father's Name
-                          _buildTextField(
-                            _fatherNameController,
-                            "Father's Name",
-                            "Enter father's name",
-                            Icons.person_outline,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter father\'s name';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 20),
-                          // 3. Father's Mobile
-                          _buildTextField(
-                            _fatherMobileController,
-                            "Father's Mobile",
-                            "Enter father's mobile number",
-                            Icons.phone,
-                            keyboardType: TextInputType.phone,
-                          ),
-                          SizedBox(height: 20),
-                          // 4. Address
-                          _buildTextField(
-                            _addressController,
-                            'Address',
-                            'Enter address',
-                            Icons.location_on,
-                          ),
-                          SizedBox(height: 20),
-                          // 5. Fee
-                          _buildTextField(
-                            _feeController,
-                            'Fee',
-                            'Enter fee amount',
-                            Icons.attach_money,
-                            keyboardType: TextInputType.number,
-                          ),
-                          SizedBox(height: 20),
-                          // 6. Class
-                          _buildTextField(
-                            _classController,
-                            'Class',
-                            'Enter class name',
-                            Icons.school,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Please enter class name';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 20),
-                          // 7. Status
-                          DropdownButtonFormField<String>(
-                            value: _selectedStatus,
-                            items: _statusOptions.map((status) {
-                              return DropdownMenuItem<String>(
-                                value: status,
-                                child: Text(status),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() { _selectedStatus = value; });
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'Status',
-                              prefixIcon: Icon(Icons.info, color: Color(0xFF1976D2)),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Color(0xFF1976D2), width: 2),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            ),
-                            // Optional, default to Actio if not selected
-                          ),
-                          SizedBox(height: 20),
-                          // 8. Admission Date
-                          _buildDateField('Admission Date', _admissionDate, (picked) => setState(() => _admissionDate = picked)),
-                          SizedBox(height: 20),
-                          // 9. Stackup Date
-                          _buildDateField('Stackup Date', _stackupDate, (picked) => setState(() => _stackupDate = picked)),
-                          SizedBox(height: 20),
-                          // 10. Graduation Date
-                          _buildDateField('Graduation Date', _graduationDate, (picked) => setState(() => _graduationDate = picked)),
-                          SizedBox(height: 20),
-                          // 11. Student Image
-                          _buildImageField(),
-                          SizedBox(height: 32),
-                          // Save Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _saveAdmission,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF1976D2),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
+                          child: Column(
+                            children: [
+                              const Icon(Icons.person_add,
+                                  size: 60, color: Color(0xFF1976D2)),
+                              const SizedBox(height: 16),
+                              Text(
+                                widget.isEdit
+                                    ? (isUrdu ? 'داخلہ ریکارڈ میں ترمیم' : 'Edit Admission Record')
+                                    : (isUrdu ? 'نیا داخلہ ریکارڈ' : 'New Admission Record'),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1976D2),
                                 ),
-                                elevation: 8,
+                                textAlign: TextAlign.center,
                               ),
-                              child: _isLoading
-                                ? CircularProgressIndicator(color: Colors.white)
-                                : Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                              const SizedBox(height: 8),
+                              Text(
+                                isUrdu 
+                                    ? 'براہ کرم تمام ضروری فیلڈز پُر کریں'
+                                    : 'Please fill in all required fields',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.grey[600]),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white,
+                          ),
+                          child: Column(
+                            children: [
+                              _buildTextField(
+                                _studentNameController,
+                                isUrdu ? 'طالب علم کا نام' : 'Student Name',
+                                isUrdu ? 'طالب علم کا نام درج کریں' : 'Enter student name',
+                                Icons.person,
+                                isUrdu: isUrdu,
+                                validator: (value) =>
+                                    value == null || value.trim().isEmpty
+                                        ? (isUrdu ? 'براہ کرم طالب علم کا نام درج کریں' : 'Please enter student name')
+                                        : null,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildTextField(
+                                _fatherNameController,
+                                isUrdu ? 'والد کا نام' : "Father's Name",
+                                isUrdu ? 'والد کا نام درج کریں' : "Enter father's name",
+                                Icons.person_outline,
+                                isUrdu: isUrdu,
+                                validator: (value) =>
+                                    value == null || value.trim().isEmpty
+                                        ? (isUrdu ? 'براہ کرم والد کا نام درج کریں' : "Please enter father's name")
+                                        : null,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildTextField(
+                                _fatherMobileController,
+                                isUrdu ? 'والد کا موبائل' : "Father's Mobile",
+                                isUrdu ? 'والد کا موبائل نمبر درج کریں' : "Enter father's mobile number",
+                                Icons.phone,
+                                isUrdu: isUrdu,
+                                keyboardType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildTextField(
+                                _addressController,
+                                isUrdu ? 'پتہ' : 'Address',
+                                isUrdu ? 'پتہ درج کریں' : 'Enter address',
+                                Icons.location_on,
+                                isUrdu: isUrdu,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildTextField(
+                                _feeController,
+                                isUrdu ? 'فیس' : 'Fee',
+                                isUrdu ? 'فیس کی رقم درج کریں' : 'Enter fee amount',
+                                Icons.attach_money,
+                                isUrdu: isUrdu,
+                                keyboardType: TextInputType.number,
+                              ),
+                              const SizedBox(height: 20),
+                              InkWell(
+                                onTap: () => _showClassSelectionDialog(context, isUrdu),
+                                child: InputDecorator(
+                                  decoration: _buildInputDecoration(
+                                    isUrdu ? 'کلاس' : 'Class',
+                                    Icons.school,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Icon(widget.isEdit ? Icons.save : Icons.add),
-                                      SizedBox(width: 8),
                                       Text(
-                                        widget.isEdit ? 'Update Admission' : 'Save Admission',
+                                        _selectedClass ?? (isUrdu ? 'کلاس منتخب کریں' : 'Select a class'),
                                         style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
+                                          color: _selectedClass == null ? Colors.grey : Colors.black,
                                         ),
                                       ),
+                                      Icon(Icons.arrow_drop_down),
                                     ],
                                   ),
-                            ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedStatus,
+                                items: _statusOptions
+                                    .map((status) => DropdownMenuItem<String>(
+                                        value: status, 
+                                        child: Text(isUrdu 
+                                            ? (status == 'Active' ? 'فعال' : status == 'Struck Off' ? 'خارج شدہ' : 'فارغ التحصیل')
+                                            : status)))
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setState(() => _selectedStatus = value),
+                                decoration:
+                                    _buildInputDecoration(isUrdu ? 'حیثیت' : 'Status', Icons.info),
+                              ),
+                              const SizedBox(height: 20),
+                              Consumer<LanguageProvider>(
+                                builder: (context, languageProvider, child) {
+                                  final isUrdu = languageProvider.isUrdu;
+                                  final residencyOptions = isUrdu
+                                      ? {'Resident': 'مقیم', 'Non_Resident': 'غیر مقیم'}
+                                      : {'Resident': 'Resident', 'Non_Resident': 'Non Resident'};
+                                  
+                                  return DropdownButtonFormField<String>(
+                                    initialValue: _selectedResidencyStatus ?? 'Resident',
+                                    items: residencyOptions.entries
+                                        .map((entry) => DropdownMenuItem<String>(
+                                            value: entry.key,
+                                            child: Text(entry.value)))
+                                        .toList(),
+                                    onChanged: (value) =>
+                                        setState(() => _selectedResidencyStatus = value),
+                                    decoration: _buildInputDecoration(
+                                        isUrdu ? 'رہائشی حیثیت' : 'Residency Status',
+                                        Icons.home_work),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              _buildDateField(
+                                  isUrdu ? 'داخلہ کی تاریخ' : 'Admission Date',
+                                  _admissionDate,
+                                  (picked) =>
+                                      setState(() => _admissionDate = picked)),
+                              const SizedBox(height: 20),
+                              _buildDateField(
+                                  isUrdu ? 'خارج ہونے کی تاریخ' : 'Struck Off Date',
+                                  _struckOffDate,
+                                  (picked) =>
+                                      setState(() => _struckOffDate = picked)),
+                              const SizedBox(height: 20),
+                              _buildDateField(
+                                  isUrdu ? 'فراغت کی تاریخ' : 'Graduation Date',
+                                  _graduationDate,
+                                  (picked) =>
+                                      setState(() => _graduationDate = picked)),
+                              const SizedBox(height: 20),
+                              _buildImageField(isUrdu),
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _saveAdmission,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1976D2),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15)),
+                                    elevation: 8,
+                                  ),
+                                  child: _isLoading
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white)
+                                      : Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(widget.isEdit
+                                                ? Icons.save
+                                                : Icons.add),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              widget.isEdit
+                                                  ? (isUrdu ? 'داخلہ اپ ڈیٹ کریں' : 'Update Admission')
+                                                  : (isUrdu ? 'داخلہ محفوظ کریں' : 'Save Admission'),
+                                              style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
+    );
+      },
     );
   }
 
@@ -592,109 +630,90 @@ class _AdmissionFormScreenState extends State<AdmissionFormScreen> {
     IconData icon, {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    bool enabled = true,
+    bool isUrdu = false,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
+      enabled: enabled,
+      decoration: _buildInputDecoration(label, icon).copyWith(
         hintText: hint,
-        prefixIcon: Icon(icon, color: Color(0xFF1976D2)),
         suffixIcon: VoiceInputButton(
-          isUrdu: Provider.of<LanguageProvider>(context, listen: false).isUrdu,
-          onResult: (text) {
-            controller.text = text;
-          },
+          isUrdu: isUrdu,
+          onResult: (text) => controller.text = text,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xFF1976D2), width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.grey[50],
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
 
-  Widget _buildDateField(String label, DateTime? value, Function(DateTime) onPicked) {
+  Widget _buildDateField(
+      String label, DateTime? value, Function(DateTime) onPicked) {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final isUrdu = languageProvider.isUrdu;
+    
     return InkWell(
       onTap: () => _pickDate(onPicked, initialDate: value),
       borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(Icons.calendar_today, color: Color(0xFF1976D2)),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Color(0xFF1976D2), width: 2),
-          ),
-          filled: true,
-          fillColor: Colors.grey[50],
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
+        decoration: _buildInputDecoration(label, Icons.calendar_today),
         child: Text(
-          value != null ? DateFormat('yyyy-MM-dd').format(value) : 'Select Date',
-          style: TextStyle(fontSize: 16, color: value != null ? Colors.black : Colors.grey[600]),
+          value != null
+              ? DateFormat('yyyy-MM-dd').format(value)
+              : (isUrdu ? 'تاریخ منتخب کریں' : 'Select Date'),
+          style: TextStyle(
+              fontSize: 16,
+              color: value != null ? Colors.black : Colors.grey[600]),
         ),
       ),
     );
   }
 
-  Widget _buildImageField() {
+  Widget _buildImageField(bool isUrdu) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Student Image', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        SizedBox(height: 8),
+        Text(isUrdu ? 'طالب علم کی تصویر' : 'Student Image',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
         Row(
           children: [
-            _studentImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      _studentImage!,
-                      width: 80,
-                      height: 80,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[400]!),
-                    ),
-                    child: Icon(Icons.person, size: 40, color: Colors.grey[400]),
-                  ),
-            SizedBox(width: 16),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[400]!),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: _imageFile != null
+                    ? Image.file(_imageFile!, fit: BoxFit.cover)
+                    : (_imageUrl != null && _imageUrl!.isNotEmpty
+                        ? Image.network(_imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.person,
+                                size: 40,
+                                color: Colors.grey[400]))
+                        : Icon(Icons.person,
+                            size: 40, color: Colors.grey[400])),
+              ),
+            ),
+            const SizedBox(width: 16),
             ElevatedButton.icon(
               onPressed: _showImagePickerMenu,
-              icon: Icon(Icons.camera_alt),
-              label: Text(_studentImage == null ? 'Add Image' : 'Change Image'),
+              icon: const Icon(Icons.camera_alt),
+              label: Text(_imageFile == null && _imageUrl == null
+                  ? (isUrdu ? 'تصویر شامل کریں' : 'Add Image')
+                  : (isUrdu ? 'تصویر تبدیل کریں' : 'Change Image')),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1976D2),
+                backgroundColor: const Color(0xFF1976D2),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
@@ -702,4 +721,27 @@ class _AdmissionFormScreenState extends State<AdmissionFormScreen> {
       ],
     );
   }
-} 
+
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: const Color(0xFF1976D2)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF1976D2), width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey[50],
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+}

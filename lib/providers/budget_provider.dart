@@ -1,189 +1,269 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
 import '../models/section.dart';
-import '../db/database_helper.dart';
-import 'cloud_data_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/database_service.dart';
 
 class BudgetProvider extends ChangeNotifier {
-  final DatabaseHelper _localDb = DatabaseHelper();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Income> _incomes = [];
+  List<Expenditure> _expenditures = [];
+  List<Section> _sections = [];
+  bool _isLoading = false;
+  String? _error;
 
-  bool get isAuthenticated => _auth.currentUser != null;
-  String? get currentUserId => _auth.currentUser?.uid;
+  // Always use Neon database (no authentication required)
+  bool get isAuthenticated => true;
+  String? get currentUserId => null; // Not using auth
 
-  // INCOME
-  Stream<List<Income>> get incomes {
-    if (isAuthenticated) {
-      return _firestore
-          .collection('accounts')
-          .doc(currentUserId)
-          .collection('income')
-          .orderBy('date', descending: true)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) => Income.fromMap({...doc.data(), 'id': doc.id})).toList());
-    } else {
-      return Stream.fromFuture(_localDb.getIncome().then((list) => list.map((e) => Income.fromMap(e)).toList()));
+  // Getters
+  List<Income> get incomes => _incomes;
+  List<Expenditure> get expenditures => _expenditures;
+  List<Section> get sections => _sections;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // Load incomes
+  Future<void> loadIncomes({String institution = 'madrasa'}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final data = await DatabaseService.getAllIncomes(institution: institution);
+      _incomes = data.map((item) => Income.fromMap(item)).toList();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      if (kDebugMode) {
+        print('Error loading incomes: $e');
+      }
+      notifyListeners();
     }
   }
 
   Future<void> addIncome(Income income) async {
-    if (isAuthenticated) {
-      final data = income.toMap();
-      data['createdAt'] = FieldValue.serverTimestamp();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('income').add(data);
-    } else {
-      await _localDb.insertIncome(income.toMap());
+    try {
+      if (kDebugMode) {
+        print('BudgetProvider.addIncome: saving income for sectionId=${income.sectionId} institution=${income.institution}');
+      }
+      await DatabaseService.addIncome(income);
+      await loadIncomes(institution: income.institution ?? 'madrasa');
+      if (kDebugMode) {
+        print('BudgetProvider.addIncome: saved income successfully');
+      }
+    } catch (e, st) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('BudgetProvider.addIncome: ERROR saving income: $e\n$st');
+      }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> updateIncome(Income income) async {
-    if (isAuthenticated && income.id != null) {
-      final data = income.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('income').doc(income.id.toString()).update(data);
-    } else if (income.id != null) {
-      await _localDb.updateIncome(income.toMap(), income.id!);
+    if (income.id == null) return;
+    try {
+      await DatabaseService.updateIncome(income);
+      await loadIncomes(institution: income.institution ?? 'madrasa');
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
-  Future<void> deleteIncome(dynamic incomeId) async {
-    if (isAuthenticated) {
-      await _firestore.collection('accounts').doc(currentUserId).collection('income').doc(incomeId.toString()).delete();
-    } else {
-      await _localDb.deleteIncome(incomeId is int ? incomeId : int.tryParse(incomeId.toString()) ?? 0);
+  Future<void> deleteIncome(dynamic incomeId, {String institution = 'madrasa'}) async {
+    try {
+      await DatabaseService.deleteIncome(incomeId, institution: institution);
+      await loadIncomes(institution: institution);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
-  // EXPENDITURE
-  Stream<List<Expenditure>> get expenditures {
-    if (isAuthenticated) {
-      return _firestore
-          .collection('accounts')
-          .doc(currentUserId)
-          .collection('expenditure')
-          .orderBy('date', descending: true)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) => Expenditure.fromMap({...doc.data(), 'id': doc.id})).toList());
-    } else {
-      return Stream.fromFuture(_localDb.getExpenditure().then((list) => list.map((e) => Expenditure.fromMap(e)).toList()));
+  // Load expenditures
+  Future<void> loadExpenditures({String institution = 'madrasa'}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final data = await DatabaseService.getAllExpenditures(institution: institution);
+      _expenditures = data.map((item) => Expenditure.fromMap(item)).toList();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      if (kDebugMode) {
+        print('Error loading expenditures: $e');
+      }
+      notifyListeners();
     }
   }
 
   Future<void> addExpenditure(Expenditure expenditure) async {
-    if (isAuthenticated) {
-      final data = expenditure.toMap();
-      data['createdAt'] = FieldValue.serverTimestamp();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('expenditure').add(data);
-    } else {
-      await _localDb.insertExpenditure(expenditure.toMap());
+    try {
+      if (kDebugMode) {
+        print('BudgetProvider.addExpenditure: saving expenditure for sectionId=${expenditure.sectionId} institution=${expenditure.institution}');
+      }
+      await DatabaseService.addExpenditure(expenditure);
+      await loadExpenditures(institution: expenditure.institution ?? 'madrasa');
+      if (kDebugMode) {
+        print('BudgetProvider.addExpenditure: saved expenditure successfully');
+      }
+    } catch (e, st) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('BudgetProvider.addExpenditure: ERROR saving expenditure: $e\n$st');
+      }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> updateExpenditure(Expenditure expenditure) async {
-    if (isAuthenticated && expenditure.id != null) {
-      final data = expenditure.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('expenditure').doc(expenditure.id.toString()).update(data);
-    } else if (expenditure.id != null) {
-      await _localDb.updateExpenditure(expenditure.toMap(), expenditure.id!);
+    if (expenditure.id == null) return;
+    try {
+      await DatabaseService.updateExpenditure(expenditure);
+      await loadExpenditures(institution: expenditure.institution ?? 'madrasa');
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
-  Future<void> deleteExpenditure(dynamic expenditureId) async {
-    if (isAuthenticated) {
-      await _firestore.collection('accounts').doc(currentUserId).collection('expenditure').doc(expenditureId.toString()).delete();
-    } else {
-      await _localDb.deleteExpenditure(expenditureId is int ? expenditureId : int.tryParse(expenditureId.toString()) ?? 0);
-    }
-    notifyListeners();
+  // New methods to handle string IDs (kept for compatibility)
+  Future<void> updateIncomeById(String documentId, Income income) async {
+    await updateIncome(income);
   }
 
-  // SECTIONS
-  Stream<List<Section>> get sections {
-    if (isAuthenticated) {
-      return _firestore
-          .collection('accounts')
-          .doc(currentUserId)
-          .collection('sections')
-          .orderBy('name')
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) => Section.fromMap({...doc.data(), 'id': doc.id})).toList());
-    } else {
-      return Stream.fromFuture(_localDb.getSections().then((list) => list.map((e) => Section.fromMap(e)).toList()));
+  Future<void> updateExpenditureById(String documentId, Expenditure expenditure) async {
+    await updateExpenditure(expenditure);
+  }
+
+  Future<void> deleteExpenditure(dynamic expenditureId, {String institution = 'madrasa'}) async {
+    try {
+      await DatabaseService.deleteExpenditure(expenditureId, institution: institution);
+      await loadExpenditures(institution: institution);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Load sections
+  Future<void> loadSections() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _sections = await DatabaseService.getAllSections();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      if (kDebugMode) {
+        print('Error loading sections: $e');
+      }
+      notifyListeners();
     }
   }
 
   Future<void> addSection(Section section) async {
-    if (isAuthenticated) {
-      final data = section.toMap();
-      data['createdAt'] = FieldValue.serverTimestamp();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('sections').add(data);
-    } else {
-      await _localDb.insertSection(section.toMap());
+    try {
+      await DatabaseService.addSection(section);
+      await loadSections();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> updateSection(Section section) async {
-    if (isAuthenticated && section.id != null) {
-      final data = section.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
-      await _firestore.collection('accounts').doc(currentUserId).collection('sections').doc(section.id.toString()).update(data);
-    } else if (section.id != null) {
-      await _localDb.updateSection(section.toMap(), section.id!);
+    if (section.id == null) return;
+    try {
+      await DatabaseService.updateSection(section);
+      await loadSections();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> deleteSection(dynamic sectionId) async {
-    if (isAuthenticated) {
-      await _firestore.collection('accounts').doc(currentUserId).collection('sections').doc(sectionId.toString()).delete();
-    } else {
-      await _localDb.deleteSection(sectionId is int ? sectionId : int.tryParse(sectionId.toString()) ?? 0);
+    try {
+      await DatabaseService.deleteSection(sectionId);
+      await loadSections();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   // For one-time fetch (not stream)
-  Future<List<Income>> fetchIncomes() async {
-    if (isAuthenticated) {
-      final snapshot = await _firestore.collection('accounts').doc(currentUserId).collection('income').orderBy('date', descending: true).get();
-      return snapshot.docs.map((doc) => Income.fromMap({...doc.data(), 'id': doc.id})).toList();
-    } else {
-      final list = await _localDb.getIncome();
-      return list.map((e) => Income.fromMap(e)).toList();
-    }
+  Future<List<Map<String, dynamic>>> fetchIncomes({String institution = 'madrasa'}) async {
+    return await DatabaseService.getAllIncomes(institution: institution);
   }
 
-  Future<List<Expenditure>> fetchExpenditures() async {
-    if (isAuthenticated) {
-      final snapshot = await _firestore.collection('accounts').doc(currentUserId).collection('expenditure').orderBy('date', descending: true).get();
-      return snapshot.docs.map((doc) => Expenditure.fromMap({...doc.data(), 'id': doc.id})).toList();
-    } else {
-      final list = await _localDb.getExpenditure();
-      return list.map((e) => Expenditure.fromMap(e)).toList();
-    }
+  Future<List<Map<String, dynamic>>> fetchExpenditures({String institution = 'madrasa'}) async {
+    return await DatabaseService.getAllExpenditures(institution: institution);
   }
 
   Future<List<Section>> fetchSections() async {
-    if (isAuthenticated) {
-      final snapshot = await _firestore.collection('accounts').doc(currentUserId).collection('sections').orderBy('name').get();
-      return snapshot.docs.map((doc) => Section.fromMap({...doc.data(), 'id': doc.id})).toList();
-    } else {
-      final list = await _localDb.getSections();
-      return list.map((e) => Section.fromMap(e)).toList();
-    }
+    return await DatabaseService.getAllSections();
   }
-} 
+
+  Future<List<Section>> fetchSectionsByType(String institution, String type) async {
+    return await DatabaseService.getSectionsByType(institution, type);
+  }
+
+  // Fetch income by section
+  Future<List<Map<String, dynamic>>> fetchIncomeBySection(int sectionId, {String institution = 'madrasa'}) async {
+    return await DatabaseService.getIncomeBySection(sectionId, institution: institution);
+  }
+
+  // New helper: fetch income by Section object
+  Future<List<Map<String, dynamic>>> fetchIncomeBySectionObj(Section section) async {
+    final sid = section.id;
+    if (sid != null) {
+      return await fetchIncomeBySection(sid, institution: section.institution);
+    }
+    return [];
+  }
+
+  // Fetch expenditure by section
+  Future<List<Map<String, dynamic>>> fetchExpenditureBySection(int sectionId, {String institution = 'madrasa'}) async {
+    return await DatabaseService.getExpenditureBySection(sectionId, institution: institution);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchExpenditureBySectionObj(Section section) async {
+    final sid2 = section.id;
+    if (sid2 != null) {
+      return await fetchExpenditureBySection(sid2, institution: section.institution);
+    }
+    return [];
+  }
+
+  // Fetch income by institution (kept for compatibility)
+  Future<List<Map<String, dynamic>>> getIncomesByInstitution(String institution) async {
+    return await DatabaseService.getAllIncomes(institution: institution);
+  }
+
+  // Fetch expenditure by institution (kept for compatibility)
+  Future<List<Map<String, dynamic>>> getExpendituresByInstitution(String institution) async {
+    return await DatabaseService.getAllExpenditures(institution: institution);
+  }
+}

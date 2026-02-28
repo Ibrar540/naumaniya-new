@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
-import 'budget_enter_data_screen.dart';
+
 import 'budget_management_screen.dart';
 import 'home_screen.dart';
 
 class BudgetOptionsScreen extends StatelessWidget {
-  const BudgetOptionsScreen({Key? key}) : super(key: key);
+  const BudgetOptionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,15 +16,28 @@ class BudgetOptionsScreen extends StatelessWidget {
         title: Text(languageProvider.getText('budget_management')),
         backgroundColor: Color(0xFF6C63FF),
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
       ),
       body: Container(
@@ -42,8 +55,11 @@ class BudgetOptionsScreen extends StatelessWidget {
                   icon: Icons.trending_up,
                   iconBg: Colors.green.shade100,
                   iconColor: Colors.green,
-                  title: languageProvider.isUrdu ? 'عام آمدنی' : 'General Income',
-                  subtitle: languageProvider.isUrdu ? 'آمدنی کا انتظام' : 'Manage Income',
+                  title:
+                      languageProvider.isUrdu ? 'عام آمدنی' : 'General Income',
+                  subtitle: languageProvider.isUrdu
+                      ? 'آمدنی کا انتظام'
+                      : 'Manage Income',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -59,8 +75,12 @@ class BudgetOptionsScreen extends StatelessWidget {
                   icon: Icons.trending_down,
                   iconBg: Colors.orange.shade100,
                   iconColor: Colors.orange,
-                  title: languageProvider.isUrdu ? 'عام خرچ' : 'General Expenditure',
-                  subtitle: languageProvider.isUrdu ? 'خرچ کا انتظام' : 'Manage Expenditure',
+                  title: languageProvider.isUrdu
+                      ? 'عام خرچ'
+                      : 'General Expenditure',
+                  subtitle: languageProvider.isUrdu
+                      ? 'خرچ کا انتظام'
+                      : 'Manage Expenditure',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -160,7 +180,7 @@ class BudgetOptionsScreen extends StatelessWidget {
 }
 
 class IncomeOptionsScreen extends StatelessWidget {
-  const IncomeOptionsScreen({Key? key}) : super(key: key);
+  const IncomeOptionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -189,31 +209,38 @@ class IncomeOptionsScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: _buildOptionButton(
                     context,
                     icon: Icons.add,
-                    title: languageProvider.isUrdu ? 'ڈیٹا داخل کریں' : 'Enter Data',
-                    subtitle: languageProvider.isUrdu ? 'آمدنی کا ریکارڈ شامل کریں' : 'Add Income Record',
+                    title: languageProvider.isUrdu
+                        ? 'ڈیٹا داخل کریں'
+                        : 'Enter Data',
+                    subtitle: languageProvider.isUrdu
+                        ? 'آمدنی کا ریکارڈ شامل کریں'
+                        : 'Add Income Record',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BudgetEnterDataScreen(type: 'income'),
+                          builder: (context) => BudgetManagementScreen(),
                         ),
                       );
                     },
                   ),
                 ),
                 SizedBox(height: 30),
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: _buildOptionButton(
                     context,
                     icon: Icons.list,
-                    title: languageProvider.isUrdu ? 'ڈیٹا دیکھیں' : 'View Data',
-                    subtitle: languageProvider.isUrdu ? 'آمدنی کے ریکارڈز دیکھیں' : 'View Income Records',
+                    title:
+                        languageProvider.isUrdu ? 'ڈیٹا دیکھیں' : 'View Data',
+                    subtitle: languageProvider.isUrdu
+                        ? 'آمدنی کے ریکارڈز دیکھیں'
+                        : 'View Income Records',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -261,7 +288,7 @@ class IncomeOptionsScreen extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withAlpha(51),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -288,7 +315,7 @@ class IncomeOptionsScreen extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withAlpha(230),
                     ),
                   ),
                 ],
@@ -307,7 +334,7 @@ class IncomeOptionsScreen extends StatelessWidget {
 }
 
 class ExpenditureOptionsScreen extends StatelessWidget {
-  const ExpenditureOptionsScreen({Key? key}) : super(key: key);
+  const ExpenditureOptionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -336,31 +363,38 @@ class ExpenditureOptionsScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: _buildOptionButton(
                     context,
                     icon: Icons.add,
-                    title: languageProvider.isUrdu ? 'ڈیٹا داخل کریں' : 'Enter Data',
-                    subtitle: languageProvider.isUrdu ? 'خرچ کا ریکارڈ شامل کریں' : 'Add Expenditure Record',
+                    title: languageProvider.isUrdu
+                        ? 'ڈیٹا داخل کریں'
+                        : 'Enter Data',
+                    subtitle: languageProvider.isUrdu
+                        ? 'خرچ کا ریکارڈ شامل کریں'
+                        : 'Add Expenditure Record',
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => BudgetEnterDataScreen(type: 'expenditure'),
+                          builder: (context) => BudgetManagementScreen(),
                         ),
                       );
                     },
                   ),
                 ),
                 SizedBox(height: 30),
-                Container(
+                SizedBox(
                   width: double.infinity,
                   child: _buildOptionButton(
                     context,
                     icon: Icons.list,
-                    title: languageProvider.isUrdu ? 'ڈیٹا دیکھیں' : 'View Data',
-                    subtitle: languageProvider.isUrdu ? 'خرچ کے ریکارڈز دیکھیں' : 'View Expenditure Records',
+                    title:
+                        languageProvider.isUrdu ? 'ڈیٹا دیکھیں' : 'View Data',
+                    subtitle: languageProvider.isUrdu
+                        ? 'خرچ کے ریکارڈز دیکھیں'
+                        : 'View Expenditure Records',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -408,7 +442,7 @@ class ExpenditureOptionsScreen extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withAlpha(51),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -435,7 +469,7 @@ class ExpenditureOptionsScreen extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withAlpha(230),
                     ),
                   ),
                 ],
@@ -451,4 +485,4 @@ class ExpenditureOptionsScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

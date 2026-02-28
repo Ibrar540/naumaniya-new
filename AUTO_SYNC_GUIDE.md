@@ -70,7 +70,7 @@ The auto-sync system handles all major data types:
 ### 📚 Students
 - Student profiles and information
 - Admission records
-- Status updates (Active, StackUp, Graduate, Left)
+- Status updates (Active, Struck Off, Graduate, Left)
 - Profile images (via Cloudinary)
 
 ### 👨‍🏫 Teachers

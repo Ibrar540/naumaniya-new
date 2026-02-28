@@ -3,7 +3,7 @@ import '../models/class_model.dart';
 import '../models/teacher.dart';
 
 class EnhancedSearchService {
-  final DatabaseHelper _db = DatabaseHelper();
+  final DatabaseHelper _db = DatabaseHelper.instance;
 
   // Enhanced search for students with intelligent logic
   Future<List<Map<String, dynamic>>> searchStudents(String query, {bool isUrdu = false}) async {

@@ -325,15 +325,28 @@ class _TeachersScreenState extends State<TeachersScreen> {
         ),
         backgroundColor: Color(0xFF1976D2),
         iconTheme: IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
         actions: [
           IconButton(
@@ -523,12 +536,15 @@ class _TeachersScreenState extends State<TeachersScreen> {
                             scaleEnabled: true,
                             minScale: 0.8,
                             maxScale: 2.5,
-                            child: Directionality(
-                              textDirection: languageProvider.isUrdu ? dart_ui.TextDirection.rtl : dart_ui.TextDirection.ltr,
-                          child: DataTable(
-                                columns: (languageProvider.isUrdu
+                            child: DataTable(
+                                border: TableBorder.all(
+                                  color: Colors.grey[400]!,
+                                  width: 1,
+                                ),
+                                columns: languageProvider.isUrdu
                                   ? [
                                       DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('عمل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('چھوڑنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
                                       DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('شروع کرنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
                                       DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('حیثیت', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
                                       DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('تنخواہ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
@@ -538,13 +554,14 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                     ]
                                   : [
                               DataColumn(label: Container(alignment: Alignment.center, width: 60, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 150, child: Text(languageProvider.isUrdu ? 'نام' : 'Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 120, child: Text(languageProvider.isUrdu ? 'موبائل' : 'Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text(languageProvider.isUrdu ? 'تنخواہ' : 'Salary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text(languageProvider.isUrdu ? 'حیثیت' : 'Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text(languageProvider.isUrdu ? 'شروع کرنے کی تاریخ' : 'Starting Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text(languageProvider.isUrdu ? 'عمل' : 'Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                    ]),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 150, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 120, child: Text('Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Salary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('Starting Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('Leaving Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                                    ],
                             rows: _filteredTeachers.map((teacher) {
                               final cells = [
                                 DataCell(Container(width: 60, alignment: Alignment.center, child: Text(teacher.id?.toString() ?? '', textAlign: TextAlign.center))),
@@ -569,6 +586,16 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                   child: Text(
                                     teacher.startingDate != null
                                         ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
+                                        : '-',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )),
+                                DataCell(Container(
+                                  width: 140,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    teacher.leavingDate.isNotEmpty && teacher.leavingDate != 'none'
+                                        ? teacher.leavingDate
                                         : '-',
                                     textAlign: TextAlign.center,
                                   ),
@@ -635,7 +662,6 @@ class _TeachersScreenState extends State<TeachersScreen> {
                               return DataRow(cells: languageProvider.isUrdu ? cells.reversed.toList() : cells);
                             }).toList(),
                               ),
-                            ),
                           ),
                         ),
                       ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/student.dart';
-import '../models/teacher.dart';
 import '../models/expenditure.dart';
 import '../models/income.dart';
 

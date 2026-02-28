@@ -8,9 +8,6 @@ import '../models/student.dart';
 import '../models/teacher.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
-import '../providers/student_provider.dart';
-import '../providers/teacher_provider.dart';
-import '../providers/budget_provider.dart';
 
 class ExportService {
   /// Export students data to PDF
@@ -46,9 +43,9 @@ class ExportService {
               ],
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Summary
           pw.Container(
             padding: pw.EdgeInsets.all(10),
@@ -57,39 +54,39 @@ class ExportService {
               borderRadius: pw.BorderRadius.circular(5),
             ),
             child: pw.Text(
-              isUrdu 
-                ? 'کل طلباء: ${students.length}'
-                : 'Total Students: ${students.length}',
+              isUrdu
+                  ? 'کل طلباء: ${students.length}'
+                  : 'Total Students: ${students.length}',
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Table
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             context: context,
             data: <List<String>>[
               // Header row
               isUrdu
-                ? ['فیس', 'حیثیت', 'کلاس', 'داخلے کی تاریخ', 'نام']
-                : ['Name', 'Admission Date', 'Class', 'Status', 'Fee'],
+                  ? ['فیس', 'حیثیت', 'کلاس', 'داخلے کی تاریخ', 'نام']
+                  : ['Name', 'Admission Date', 'Class', 'Status', 'Fee'],
               // Data rows
               ...students.map((student) => isUrdu
-                ? [
-                    student.fee,
-                    student.status,
-                    'Class ${String.fromCharCode(64 + (student.classId ?? 1))}',
-                    DateFormat('yyyy-MM-dd').format(student.admissionDate),
-                    student.name,
-                  ]
-                : [
-                    student.name,
-                    DateFormat('yyyy-MM-dd').format(student.admissionDate),
-                    'Class ${String.fromCharCode(64 + (student.classId ?? 1))}',
-                    student.status,
-                    student.fee,
-                  ]),
+                  ? [
+                      student.fee,
+                      student.status,
+                      'Class ${String.fromCharCode(64 + (student.classId ?? 1))}',
+                      DateFormat('yyyy-MM-dd').format(student.admissionDate),
+                      student.name,
+                    ]
+                  : [
+                      student.name,
+                      DateFormat('yyyy-MM-dd').format(student.admissionDate),
+                      'Class ${String.fromCharCode(64 + (student.classId ?? 1))}',
+                      student.status,
+                      student.fee,
+                    ]),
             ],
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
@@ -112,7 +109,8 @@ class ExportService {
 
     // Save PDF
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/students_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '${output.path}/students_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
@@ -128,8 +126,8 @@ class ExportService {
 
     // Header row
     final headers = isUrdu
-      ? ['فیس', 'حیثیت', 'کلاس', 'داخلے کی تاریخ', 'نام']
-      : ['Name', 'Admission Date', 'Class', 'Status', 'Fee'];
+        ? ['فیس', 'حیثیت', 'کلاس', 'داخلے کی تاریخ', 'نام']
+        : ['Name', 'Admission Date', 'Class', 'Status', 'Fee'];
 
     for (int i = 0; i < headers.length; i++) {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
@@ -146,19 +144,47 @@ class ExportService {
     for (int i = 0; i < students.length; i++) {
       final student = students[i];
       final row = i + 1;
-      
+
       if (isUrdu) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(student.fee);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(student.status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue('Class ${String.fromCharCode(64 + (student.classId ?? 1))}');
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value = TextCellValue(DateFormat('yyyy-MM-dd').format(student.admissionDate));
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row)).value = TextCellValue(student.name);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(student.fee);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(student.status);
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+                .value =
+            TextCellValue(
+                'Class ${String.fromCharCode(64 + (student.classId ?? 1))}');
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+                .value =
+            TextCellValue(
+                DateFormat('yyyy-MM-dd').format(student.admissionDate));
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+            .value = TextCellValue(student.name);
       } else {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(student.name);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(DateFormat('yyyy-MM-dd').format(student.admissionDate));
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue('Class ${String.fromCharCode(64 + (student.classId ?? 1))}');
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value = TextCellValue(student.status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row)).value = TextCellValue(student.fee);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(student.name);
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(
+                DateFormat('yyyy-MM-dd').format(student.admissionDate));
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+                .value =
+            TextCellValue(
+                'Class ${String.fromCharCode(64 + (student.classId ?? 1))}');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+            .value = TextCellValue(student.status);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+            .value = TextCellValue(student.fee);
       }
     }
 
@@ -169,7 +195,8 @@ class ExportService {
 
     // Save Excel file
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/students_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+    final file = File(
+        '${output.path}/students_${DateTime.now().millisecondsSinceEpoch}.xlsx');
     await file.writeAsBytes(excel.encode()!);
     return file;
   }
@@ -206,9 +233,9 @@ class ExportService {
               ],
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Summary
           pw.Container(
             padding: pw.EdgeInsets.all(10),
@@ -217,43 +244,45 @@ class ExportService {
               borderRadius: pw.BorderRadius.circular(5),
             ),
             child: pw.Text(
-              isUrdu 
-                ? 'کل اساتذہ: ${teachers.length}'
-                : 'Total Teachers: ${teachers.length}',
+              isUrdu
+                  ? 'کل اساتذہ: ${teachers.length}'
+                  : 'Total Teachers: ${teachers.length}',
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Table
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             context: context,
             data: <List<String>>[
               // Header row
               isUrdu
-                ? ['تنخواہ', 'حیثیت', 'موبائل', 'شروع کی تاریخ', 'نام']
-                : ['Name', 'Starting Date', 'Mobile', 'Status', 'Salary'],
+                  ? ['تنخواہ', 'حیثیت', 'موبائل', 'شروع کی تاریخ', 'نام']
+                  : ['Name', 'Starting Date', 'Mobile', 'Status', 'Salary'],
               // Data rows
               ...teachers.map((teacher) => isUrdu
-                ? [
-                    teacher.salary.toString(),
-                    teacher.status,
-                    teacher.mobile,
-                    teacher.startingDate != null 
-                      ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
-                      : '-',
-                    teacher.name,
-                  ]
-                : [
-                    teacher.name,
-                    teacher.startingDate != null 
-                      ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
-                      : '-',
-                    teacher.mobile,
-                    teacher.status,
-                    teacher.salary.toString(),
-                  ]),
+                  ? [
+                      teacher.salary.toString(),
+                      teacher.status,
+                      teacher.mobile,
+                      teacher.startingDate != null
+                          ? DateFormat('yyyy-MM-dd')
+                              .format(teacher.startingDate!)
+                          : '-',
+                      teacher.name,
+                    ]
+                  : [
+                      teacher.name,
+                      teacher.startingDate != null
+                          ? DateFormat('yyyy-MM-dd')
+                              .format(teacher.startingDate!)
+                          : '-',
+                      teacher.mobile,
+                      teacher.status,
+                      teacher.salary.toString(),
+                    ]),
             ],
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
@@ -276,7 +305,8 @@ class ExportService {
 
     // Save PDF
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/teachers_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '${output.path}/teachers_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
@@ -292,8 +322,8 @@ class ExportService {
 
     // Header row
     final headers = isUrdu
-      ? ['تنخواہ', 'حیثیت', 'موبائل', 'شروع کی تاریخ', 'نام']
-      : ['Name', 'Starting Date', 'Mobile', 'Status', 'Salary'];
+        ? ['تنخواہ', 'حیثیت', 'موبائل', 'شروع کی تاریخ', 'نام']
+        : ['Name', 'Starting Date', 'Mobile', 'Status', 'Salary'];
 
     for (int i = 0; i < headers.length; i++) {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
@@ -310,23 +340,45 @@ class ExportService {
     for (int i = 0; i < teachers.length; i++) {
       final teacher = teachers[i];
       final row = i + 1;
-      
+
       if (isUrdu) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(teacher.salary.toString());
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(teacher.status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(teacher.mobile);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value = TextCellValue(teacher.startingDate != null 
-          ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
-          : '-');
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row)).value = TextCellValue(teacher.name);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(teacher.salary.toString());
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(teacher.status);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(teacher.mobile);
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+                .value =
+            TextCellValue(teacher.startingDate != null
+                ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
+                : '-');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+            .value = TextCellValue(teacher.name);
       } else {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(teacher.name);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(teacher.startingDate != null 
-          ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
-          : '-');
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(teacher.mobile);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row)).value = TextCellValue(teacher.status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row)).value = TextCellValue(teacher.salary.toString());
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(teacher.name);
+        sheet
+                .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+                .value =
+            TextCellValue(teacher.startingDate != null
+                ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
+                : '-');
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(teacher.mobile);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: row))
+            .value = TextCellValue(teacher.status);
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: row))
+            .value = TextCellValue(teacher.salary.toString());
       }
     }
 
@@ -337,7 +389,8 @@ class ExportService {
 
     // Save Excel file
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/teachers_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+    final file = File(
+        '${output.path}/teachers_${DateTime.now().millisecondsSinceEpoch}.xlsx');
     await file.writeAsBytes(excel.encode()!);
     return file;
   }
@@ -375,9 +428,9 @@ class ExportService {
               ],
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Summary
           pw.Container(
             padding: pw.EdgeInsets.all(10),
@@ -389,31 +442,34 @@ class ExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  isUrdu 
-                    ? 'کل آمدنی: ${incomes.fold(0.0, (sum, income) => sum + income.amount)}'
-                    : 'Total Income: ${incomes.fold(0.0, (sum, income) => sum + income.amount)}',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                  isUrdu
+                      ? 'کل آمدنی: ${incomes.fold(0.0, (sum, income) => sum + income.amount)}'
+                      : 'Total Income: ${incomes.fold(0.0, (sum, income) => sum + income.amount)}',
+                  style: pw.TextStyle(
+                      fontSize: 14, fontWeight: pw.FontWeight.bold),
                 ),
                 pw.SizedBox(height: 5),
                 pw.Text(
-                  isUrdu 
-                    ? 'کل خرچ: ${expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}'
-                    : 'Total Expenditure: ${expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                  isUrdu
+                      ? 'کل خرچ: ${expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}'
+                      : 'Total Expenditure: ${expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}',
+                  style: pw.TextStyle(
+                      fontSize: 14, fontWeight: pw.FontWeight.bold),
                 ),
                 pw.SizedBox(height: 5),
                 pw.Text(
-                  isUrdu 
-                    ? 'بقیہ: ${incomes.fold(0.0, (sum, income) => sum + income.amount) - expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}'
-                    : 'Balance: ${incomes.fold(0.0, (sum, income) => sum + income.amount) - expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}',
-                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                  isUrdu
+                      ? 'بقیہ: ${incomes.fold(0.0, (sum, income) => sum + income.amount) - expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}'
+                      : 'Balance: ${incomes.fold(0.0, (sum, income) => sum + income.amount) - expenditures.fold(0.0, (sum, exp) => sum + exp.amount)}',
+                  style: pw.TextStyle(
+                      fontSize: 14, fontWeight: pw.FontWeight.bold),
                 ),
               ],
             ),
           ),
-          
+
           pw.SizedBox(height: 20),
-          
+
           // Income Table
           if (incomes.isNotEmpty) ...[
             pw.Text(
@@ -421,23 +477,25 @@ class ExportService {
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 10),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               context: context,
               data: <List<String>>[
                 // Header row
-                isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'],
+                isUrdu
+                    ? ['رقم', 'تاریخ', 'تفصیل']
+                    : ['Description', 'Date', 'Amount'],
                 // Data rows
                 ...incomes.map((income) => isUrdu
-                  ? [
-                      income.amount.toString(),
-                      income.date,
-                      income.description,
-                    ]
-                  : [
-                      income.description,
-                      income.date,
-                      income.amount.toString(),
-                    ]),
+                    ? [
+                        income.amount.toString(),
+                        income.date,
+                        income.description,
+                      ]
+                    : [
+                        income.description,
+                        income.date,
+                        income.amount.toString(),
+                      ]),
               ],
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
@@ -449,7 +507,7 @@ class ExportService {
             ),
             pw.SizedBox(height: 20),
           ],
-          
+
           // Expenditure Table
           if (expenditures.isNotEmpty) ...[
             pw.Text(
@@ -457,23 +515,25 @@ class ExportService {
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 10),
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               context: context,
               data: <List<String>>[
                 // Header row
-                isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'],
+                isUrdu
+                    ? ['رقم', 'تاریخ', 'تفصیل']
+                    : ['Description', 'Date', 'Amount'],
                 // Data rows
                 ...expenditures.map((expenditure) => isUrdu
-                  ? [
-                      expenditure.amount.toString(),
-                      expenditure.date,
-                      expenditure.description,
-                    ]
-                  : [
-                      expenditure.description,
-                      expenditure.date,
-                      expenditure.amount.toString(),
-                    ]),
+                    ? [
+                        expenditure.amount.toString(),
+                        expenditure.date,
+                        expenditure.description,
+                      ]
+                    : [
+                        expenditure.description,
+                        expenditure.date,
+                        expenditure.amount.toString(),
+                      ]),
               ],
               headerStyle: pw.TextStyle(
                 fontWeight: pw.FontWeight.bold,
@@ -490,7 +550,8 @@ class ExportService {
 
     // Save PDF
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/budget_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '${output.path}/budget_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
@@ -503,11 +564,12 @@ class ExportService {
     String? title,
   }) async {
     final excel = Excel.createExcel();
-    
+
     // Income sheet
     final incomeSheet = excel['Income'];
-    final incomeHeaders = isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'];
-    
+    final incomeHeaders =
+        isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'];
+
     for (int i = 0; i < incomeHeaders.length; i++) {
       incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
         ..value = TextCellValue(incomeHeaders[i])
@@ -522,24 +584,38 @@ class ExportService {
     for (int i = 0; i < incomes.length; i++) {
       final income = incomes[i];
       final row = i + 1;
-      
+
       if (isUrdu) {
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(income.amount.toString());
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(income.date);
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(income.description);
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(income.amount.toString());
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(income.date);
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(income.description);
       } else {
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(income.description);
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(income.date);
-        incomeSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(income.amount.toString());
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(income.description);
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(income.date);
+        incomeSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(income.amount.toString());
       }
     }
 
     // Expenditure sheet
     final expenditureSheet = excel['Expenditure'];
-    final expenditureHeaders = isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'];
-    
+    final expenditureHeaders =
+        isUrdu ? ['رقم', 'تاریخ', 'تفصیل'] : ['Description', 'Date', 'Amount'];
+
     for (int i = 0; i < expenditureHeaders.length; i++) {
-      expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+      expenditureSheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
         ..value = TextCellValue(expenditureHeaders[i])
         ..cellStyle = CellStyle(
           bold: true,
@@ -552,38 +628,57 @@ class ExportService {
     for (int i = 0; i < expenditures.length; i++) {
       final expenditure = expenditures[i];
       final row = i + 1;
-      
+
       if (isUrdu) {
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(expenditure.amount.toString());
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(expenditure.date);
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(expenditure.description);
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(expenditure.amount.toString());
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(expenditure.date);
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(expenditure.description);
       } else {
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(expenditure.description);
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue(expenditure.date);
-        expenditureSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue(expenditure.amount.toString());
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(expenditure.description);
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = TextCellValue(expenditure.date);
+        expenditureSheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = TextCellValue(expenditure.amount.toString());
       }
     }
 
     // Summary sheet
     final summarySheet = excel['Summary'];
     final totalIncome = incomes.fold(0.0, (sum, income) => sum + income.amount);
-    final totalExpenditure = expenditures.fold(0.0, (sum, exp) => sum + exp.amount);
+    final totalExpenditure =
+        expenditures.fold(0.0, (sum, exp) => sum + exp.amount);
     final balance = totalIncome - totalExpenditure;
 
     summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
       ..value = TextCellValue(isUrdu ? 'کل آمدنی' : 'Total Income')
       ..cellStyle = CellStyle(bold: true);
-    summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = DoubleCellValue(totalIncome);
+    summarySheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0))
+        .value = DoubleCellValue(totalIncome);
 
     summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
       ..value = TextCellValue(isUrdu ? 'کل خرچ' : 'Total Expenditure')
       ..cellStyle = CellStyle(bold: true);
-    summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).value = DoubleCellValue(totalExpenditure);
+    summarySheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1))
+        .value = DoubleCellValue(totalExpenditure);
 
     summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2))
       ..value = TextCellValue(isUrdu ? 'بقیہ' : 'Balance')
       ..cellStyle = CellStyle(bold: true);
-    summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2)).value = DoubleCellValue(balance);
+    summarySheet
+        .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 2))
+        .value = DoubleCellValue(balance);
 
     // Auto-fit columns
     for (final sheet in [incomeSheet, expenditureSheet, summarySheet]) {
@@ -594,7 +689,8 @@ class ExportService {
 
     // Save Excel file
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/budget_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+    final file = File(
+        '${output.path}/budget_${DateTime.now().millisecondsSinceEpoch}.xlsx');
     await file.writeAsBytes(excel.encode()!);
     return file;
   }
@@ -610,24 +706,26 @@ class ExportService {
       case 'students':
         final students = data.cast<Student>();
         return format == 'pdf'
-          ? await exportStudentsToPdf(students: students, isUrdu: isUrdu)
-          : await exportStudentsToExcel(students: students, isUrdu: isUrdu);
-      
+            ? await exportStudentsToPdf(students: students, isUrdu: isUrdu)
+            : await exportStudentsToExcel(students: students, isUrdu: isUrdu);
+
       case 'teachers':
         final teachers = data.cast<Teacher>();
         return format == 'pdf'
-          ? await exportTeachersToPdf(teachers: teachers, isUrdu: isUrdu)
-          : await exportTeachersToExcel(teachers: teachers, isUrdu: isUrdu);
-      
+            ? await exportTeachersToPdf(teachers: teachers, isUrdu: isUrdu)
+            : await exportTeachersToExcel(teachers: teachers, isUrdu: isUrdu);
+
       case 'budget':
         final incomes = data.whereType<Income>().toList();
         final expenditures = data.whereType<Expenditure>().toList();
         return format == 'pdf'
-          ? await exportBudgetToPdf(incomes: incomes, expenditures: expenditures, isUrdu: isUrdu)
-          : await exportBudgetToExcel(incomes: incomes, expenditures: expenditures, isUrdu: isUrdu);
-      
+            ? await exportBudgetToPdf(
+                incomes: incomes, expenditures: expenditures, isUrdu: isUrdu)
+            : await exportBudgetToExcel(
+                incomes: incomes, expenditures: expenditures, isUrdu: isUrdu);
+
       default:
         throw Exception('Unsupported module: $module');
     }
   }
-} 
+}

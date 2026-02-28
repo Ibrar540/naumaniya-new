@@ -10,11 +10,11 @@ class Student {
   DateTime admissionDate;
   String fee;
   String status;
-  String stuckupDate;
+  String struckOffDate;
   String graduationDate;
   String leftDate;
   int? classId;
-  String? imageUrl; // Cloudinary image URL
+  String? className;  // Added className field
   bool isSaved;
 
   Student({
@@ -27,11 +27,11 @@ class Student {
     required this.admissionDate,
     required this.fee,
     this.status = '',
-    this.stuckupDate = '',
+    this.struckOffDate = '',
     this.graduationDate = '',
     this.leftDate = '',
     this.classId,
-    this.imageUrl,
+    this.className,  // Added className parameter
     this.isSaved = false,
   });
 
@@ -46,24 +46,35 @@ class Student {
       'admissionDate': DateFormat('yyyy-MM-dd').format(admissionDate),
       'fee': fee,
       'status': status,
-      'stuckupDate': stuckupDate,
+      'struckOffDate': struckOffDate,
       'graduationDate': graduationDate,
       'leftDate': leftDate,
       'classId': classId,
-      'imageUrl': imageUrl,
+      'class': className,  // Added className to map
     };
   }
 
   factory Student.fromMap(Map<String, dynamic> map) {
-    DateTime parseAdmissionDate(String? dateStr) {
-      if (dateStr == null || dateStr.isEmpty || dateStr == 'none') {
+    DateTime parseAdmissionDate(dynamic dateValue) {
+      if (dateValue == null) {
         return DateTime.now();
       }
-      try {
-        return DateFormat('yyyy-MM-dd').parse(dateStr);
-      } catch (e) {
-        return DateTime.now();
+      // Handle DateTime object (from PostgreSQL)
+      if (dateValue is DateTime) {
+        return dateValue;
       }
+      // Handle String (from old data or JSON)
+      if (dateValue is String) {
+        if (dateValue.isEmpty || dateValue == 'none') {
+          return DateTime.now();
+        }
+        try {
+          return DateFormat('yyyy-MM-dd').parse(dateValue);
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
     }
 
     return Student(
@@ -71,16 +82,18 @@ class Student {
       studentId: map['student_id'],
       rollNo: map['roll_no'],
       name: map['name'] ?? '',
-      fatherName: map['fatherName'] ?? '',
-      mobile: map['mobile'] ?? '',
-      admissionDate: parseAdmissionDate(map['admissionDate']),
-      fee: map['fee'] ?? '',
-      status: (map['status'] ?? '').toString().trim().isEmpty ? 'Active' : map['status'],
-      stuckupDate: map['stuckupDate'] ?? '',
-      graduationDate: map['graduationDate'] ?? '',
+      fatherName: map['father_name'] ?? map['fatherName'] ?? '',
+      mobile: map['mobile'] ?? map['mobile_no']?.toString() ?? '',
+      admissionDate: parseAdmissionDate(map['admission_date'] ?? map['admissionDate']),
+      fee: (map['fee'] ?? '').toString(),
+      status: (map['status'] ?? '').toString().trim().isEmpty
+          ? 'Active'
+          : map['status'],
+      struckOffDate: (map['struck_off_date'] ?? map['struckOffDate'] ?? '').toString(),
+      graduationDate: (map['graduation_date'] ?? map['graduationDate'] ?? '').toString(),
       leftDate: map['leftDate'] ?? '',
       classId: map['classId'],
-      imageUrl: map['imageUrl'],
+      className: map['class'],  // Added className from map
       isSaved: true,
     );
   }
@@ -96,11 +109,11 @@ class Student {
     DateTime? admissionDate,
     String? fee,
     String? status,
-    String? stuckupDate,
+    String? struckOffDate,
     String? graduationDate,
     String? leftDate,
     int? classId,
-    String? imageUrl,
+    String? className,  // Added className parameter
     bool? isSaved,
   }) {
     return Student(
@@ -113,12 +126,12 @@ class Student {
       admissionDate: admissionDate ?? this.admissionDate,
       fee: fee ?? this.fee,
       status: status ?? this.status,
-      stuckupDate: stuckupDate ?? this.stuckupDate,
+      struckOffDate: struckOffDate ?? this.struckOffDate,
       graduationDate: graduationDate ?? this.graduationDate,
       leftDate: leftDate ?? this.leftDate,
       classId: classId ?? this.classId,
-      imageUrl: imageUrl ?? this.imageUrl,
+      className: className ?? this.className,  // Added className
       isSaved: isSaved ?? this.isSaved,
     );
   }
-} 
+}

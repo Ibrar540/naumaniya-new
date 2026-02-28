@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../db/database_helper.dart';
+import '../models/section.dart';
 import '../providers/language_provider.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
@@ -11,8 +11,15 @@ import '../providers/budget_provider.dart';
 
 class BudgetEnterDataScreen extends StatefulWidget {
   final String type; // 'income' or 'expenditure'
+  final Section section;
+  final String institution;
 
-  const BudgetEnterDataScreen({Key? key, required this.type}) : super(key: key);
+  const BudgetEnterDataScreen({
+    super.key,
+    required this.type,
+    required this.section,
+    required this.institution,
+  });
 
   @override
   _BudgetEnterDataScreenState createState() => _BudgetEnterDataScreenState();
@@ -55,23 +62,46 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
       try {
         final desc = _descriptionController.text.trim();
         final amountText = _amountController.text.trim();
-        final date = _selectedDate != null ? DateFormat('yyyy-MM-dd').format(_selectedDate!) : '';
-        if (desc.isEmpty || amountText.isEmpty || date.isEmpty) return;
+        // Use current date if not selected
+        final date = _selectedDate != null
+            ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+            : DateFormat('yyyy-MM-dd').format(DateTime.now());
+        if (desc.isEmpty || amountText.isEmpty) return;
         final amount = double.tryParse(amountText) ?? 0.0;
         if (_selectedType == 'income') {
-          await _budgetProvider.addIncome(Income(description: desc, amount: amount, date: date));
+          await _budgetProvider.addIncome(Income(
+            description: desc,
+            amount: amount,
+            date: date,
+            sectionId: widget.section.id,
+            sectionDocId: widget.section.docId,
+            institution: widget.institution,
+          ));
         } else {
-          await _budgetProvider.addExpenditure(Expenditure(description: desc, amount: amount, date: date));
+          await _budgetProvider.addExpenditure(Expenditure(
+            description: desc,
+            amount: amount,
+            date: date,
+            sectionId: widget.section.id,
+            sectionDocId: widget.section.docId,
+            institution: widget.institution,
+          ));
         }
         _descriptionController.clear();
         _amountController.clear();
-        setState(() { _selectedDate = null; });
+        setState(() {
+          _selectedDate = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Record added successfully'), backgroundColor: Colors.green),
+          SnackBar(
+              content: Text('Record added successfully'),
+              backgroundColor: Colors.green),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding record: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error adding record: $e'),
+              backgroundColor: Colors.red),
         );
       } finally {
         setState(() {
@@ -79,15 +109,6 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
         });
       }
     }
-  }
-
-  void _clearForm() {
-    _formKey.currentState!.reset();
-    _descriptionController.clear();
-    _amountController.clear();
-    setState(() {
-      _selectedDate = null;
-    });
   }
 
   @override
@@ -105,15 +126,28 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
       ),
       body: Stack(
@@ -154,15 +188,21 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                         child: Column(
                           children: [
                             Icon(
-                              _selectedType == 'income' ? Icons.trending_up : Icons.trending_down,
+                              _selectedType == 'income'
+                                  ? Icons.trending_up
+                                  : Icons.trending_down,
                               size: 60,
                               color: Colors.teal,
                             ),
                             SizedBox(height: 16),
                             Text(
                               _selectedType == 'income'
-                                  ? (isUrdu ? 'نئی آمدنی شامل کریں' : 'Add New Income')
-                                  : (isUrdu ? 'نیا خرچ شامل کریں' : 'Add New Expenditure'),
+                                  ? (isUrdu
+                                      ? 'نئی آمدنی شامل کریں'
+                                      : 'Add New Income')
+                                  : (isUrdu
+                                      ? 'نیا خرچ شامل کریں'
+                                      : 'Add New Expenditure'),
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -173,8 +213,12 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                             SizedBox(height: 8),
                             Text(
                               _selectedType == 'income'
-                                  ? (isUrdu ? 'آمدنی کی معلومات درج کریں' : 'Enter income information')
-                                  : (isUrdu ? 'خرچ کی معلومات درج کریں' : 'Enter expenditure information'),
+                                  ? (isUrdu
+                                      ? 'آمدنی کی معلومات درج کریں'
+                                      : 'Enter income information')
+                                  : (isUrdu
+                                      ? 'خرچ کی معلومات درج کریں'
+                                      : 'Enter expenditure information'),
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[600],
@@ -203,12 +247,14 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                             _buildTextField(
                               controller: _descriptionController,
                               label: languageProvider.getText('description'),
-                              hint: languageProvider.getText('enter_description'),
+                              hint:
+                                  languageProvider.getText('enter_description'),
                               icon: Icons.description,
                               isMultiline: true,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return languageProvider.getText('please_enter_description');
+                                  return languageProvider
+                                      .getText('please_enter_description');
                                 }
                                 return null;
                               },
@@ -220,10 +266,13 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                               label: languageProvider.getText('amount'),
                               hint: languageProvider.getText('enter_amount'),
                               icon: Icons.attach_money,
-                              keyboardType: TextInputType.numberWithOptions(decimal: true),
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
                               validator: (value) {
-                                if (value == null || value.isEmpty) return 'Amount is required';
-                                if (double.tryParse(value) == null) return 'Amount must be a number';
+                                if (value == null || value.isEmpty)
+                                  return 'Amount is required';
+                                if (double.tryParse(value) == null)
+                                  return 'Amount must be a number';
                                 return null;
                               },
                               isUrdu: isUrdu,
@@ -242,7 +291,8 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                         backgroundColor: Colors.teal,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(15),
+                                          borderRadius:
+                                              BorderRadius.circular(15),
                                         ),
                                         elevation: 8,
                                         textStyle: TextStyle(
@@ -251,11 +301,13 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                         ),
                                       ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Icon(Icons.check_circle, size: 24),
                                           SizedBox(width: 8),
-                                          Text(languageProvider.getText('submit')),
+                                          Text(languageProvider
+                                              .getText('submit')),
                                         ],
                                       ),
                                     ),
@@ -307,7 +359,8 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
     );
   }
 
-  Widget _buildDateField(BuildContext context, LanguageProvider languageProvider) {
+  Widget _buildDateField(
+      BuildContext context, LanguageProvider languageProvider) {
     final isUrdu = languageProvider.isUrdu;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,4 +393,4 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
       ],
     );
   }
-} 
+}

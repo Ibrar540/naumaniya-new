@@ -6,25 +6,40 @@ import 'teachers_screen.dart';
 import 'home_screen.dart';
 
 class TeacherOptionsScreen extends StatelessWidget {
-  const TeacherOptionsScreen({Key? key}) : super(key: key);
+  const TeacherOptionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(languageProvider.isUrdu ? 'اساتذہ کا انتظام' : 'Teacher Management'),
+        title: Text(languageProvider.isUrdu
+            ? 'اساتذہ کا انتظام'
+            : 'Teacher Management'),
         backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-              (route) => false,
-            );
-          },
-          tooltip: 'Home',
+        automaticallyImplyLeading: false,
+        leadingWidth: 100,
+        leading: Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.home),
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  (route) => false,
+                );
+              },
+              tooltip: 'Home',
+              padding: EdgeInsets.zero,
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+              padding: EdgeInsets.zero,
+            ),
+          ],
         ),
       ),
       body: Container(
@@ -48,8 +63,11 @@ class TeacherOptionsScreen extends StatelessWidget {
                   icon: Icons.add,
                   iconBg: Colors.green.shade100,
                   iconColor: Colors.green,
-                  title: languageProvider.isUrdu ? 'ڈیٹا داخل کریں' : 'Enter Data',
-                  subtitle: languageProvider.isUrdu ? 'استاد کا ریکارڈ شامل کریں' : 'Add Teacher Record',
+                  title:
+                      languageProvider.isUrdu ? 'ڈیٹا داخل کریں' : 'Enter Data',
+                  subtitle: languageProvider.isUrdu
+                      ? 'استاد کا ریکارڈ شامل کریں'
+                      : 'Add Teacher Record',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -66,7 +84,9 @@ class TeacherOptionsScreen extends StatelessWidget {
                   iconBg: Colors.green.shade100,
                   iconColor: Colors.green,
                   title: languageProvider.isUrdu ? 'ڈیٹا دیکھیں' : 'View Data',
-                  subtitle: languageProvider.isUrdu ? 'اساتذہ کے ریکارڈز دیکھیں' : 'View Teacher Records',
+                  subtitle: languageProvider.isUrdu
+                      ? 'اساتذہ کے ریکارڈز دیکھیں'
+                      : 'View Teacher Records',
                   onTap: () {
                     Navigator.push(
                       context,
@@ -105,7 +125,7 @@ class TeacherOptionsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha((0.08 * 255).toInt()),
               blurRadius: 12,
               offset: Offset(0, 4),
             ),
@@ -163,4 +183,4 @@ class TeacherOptionsScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

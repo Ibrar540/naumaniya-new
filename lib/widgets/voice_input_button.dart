@@ -9,11 +9,11 @@ class VoiceInputButton extends StatefulWidget {
   final double? size;
 
   const VoiceInputButton({
-    Key? key, 
+    super.key, 
     required this.isUrdu, 
     required this.onResult,
     this.size,
-  }) : super(key: key);
+  });
 
   @override
   _VoiceInputButtonState createState() => _VoiceInputButtonState();
@@ -33,7 +33,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
 
   Future<bool> _isOffline() async {
     final connectivity = await Connectivity().checkConnectivity();
-    return connectivity == ConnectivityResult.none;
+    return connectivity.contains(ConnectivityResult.none);
   }
 
   void _showError(String message) {

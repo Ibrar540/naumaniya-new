@@ -1,71 +1,100 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/teacher.dart';
 import '../db/database_helper.dart';
-import 'cloud_data_provider.dart';
+import '../services/database_service.dart';
 
 class TeacherProvider extends ChangeNotifier {
-  final CloudDataProvider _cloudProvider = CloudDataProvider();
-  final DatabaseHelper _localDb = DatabaseHelper();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseHelper _localDb = DatabaseHelper.instance;
+  List<Teacher> _teachers = [];
+  bool _isLoading = false;
+  String? _error;
 
-  bool get isAuthenticated => _auth.currentUser != null;
+  // Always use Neon database (no authentication required)
+  bool get isAuthenticated => true;
 
-  // Stream of teachers
-  Stream<List<Teacher>> get teachers {
-    if (isAuthenticated) {
-      return _cloudProvider.teachers;
-    } else {
-      // Convert Future to Stream for local
-      return Stream.fromFuture(_localDb.getTeachers().then((list) => list.map((e) => Teacher.fromMap(e)).toList()));
+  // Getters
+  List<Teacher> get teachers => _teachers;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  // Load teachers from database
+  Future<void> loadTeachers() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _teachers = await DatabaseService.getAllTeachers();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      if (kDebugMode) {
+        print('Error loading teachers: $e');
+      }
+      notifyListeners();
     }
   }
 
   Future<void> addTeacher(Teacher teacher) async {
-    if (isAuthenticated) {
-      await _cloudProvider.addTeacher(teacher);
-    } else {
-      await _localDb.insertTeacher(teacher.toMap());
+    try {
+      await DatabaseService.addTeacher(teacher);
+      await loadTeachers(); // Reload to get updated list
+    } catch (e) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('Error adding teacher: $e');
+      }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> updateTeacher(Teacher teacher) async {
-    if (isAuthenticated) {
-      await _cloudProvider.updateTeacher(teacher);
-    } else {
-      if (teacher.id != null) {
-        await _localDb.updateTeacher(teacher.toMap(), teacher.id!);
+    try {
+      await DatabaseService.updateTeacher(teacher);
+      await loadTeachers(); // Reload to get updated list
+    } catch (e) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('Error updating teacher: $e');
       }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   Future<void> deleteTeacher(dynamic teacherId) async {
-    if (isAuthenticated) {
-      await _cloudProvider.deleteTeacher(teacherId.toString());
-    } else {
-      await _localDb.deleteTeacher(teacherId is int ? teacherId : int.tryParse(teacherId.toString()) ?? 0);
+    try {
+      await DatabaseService.deleteTeacher(teacherId.toString());
+      await loadTeachers(); // Reload to get updated list
+    } catch (e) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('Error deleting teacher: $e');
+      }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
 
   // For one-time fetch (not stream)
   Future<List<Teacher>> fetchTeachers() async {
-    if (isAuthenticated) {
-      return await _cloudProvider.teachers.first;
-    } else {
-      final list = await _localDb.getTeachers();
-      return list.map((e) => Teacher.fromMap(e)).toList();
-    }
+    return await DatabaseService.getAllTeachers();
   }
 
   Future<void> updateTeacherStatus(int teacherId, String newStatus) async {
-    if (isAuthenticated) {
-      await _cloudProvider.updateTeacherStatus(teacherId, newStatus);
-    } else {
-      await _localDb.updateTeacherStatus(teacherId, newStatus);
+    try {
+      await DatabaseService.updateTeacherStatus(teacherId, newStatus);
+      await loadTeachers(); // Reload to get updated list
+    } catch (e) {
+      _error = e.toString();
+      if (kDebugMode) {
+        print('Error updating teacher status: $e');
+      }
+      notifyListeners();
+      rethrow;
     }
-    notifyListeners();
   }
-} 
+}

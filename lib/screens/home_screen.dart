@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/auto_sync_provider.dart';
-import 'ai_reporting_screen.dart';
-import 'budget_management_screen.dart';
+import 'ai_chat_screen.dart';
+import 'madrasa_budget_screen.dart';
 import 'students_screen.dart';
 import 'teachers_screen.dart';
 import 'budget_enter_data_screen.dart';
@@ -14,9 +12,6 @@ import 'teacher_enter_data_screen.dart';
 import 'teacher_options_screen.dart';
 import 'admission_office_screen.dart';
 import 'masjid_budget_screen.dart';
-import 'account_settings_screen.dart';
-import '../providers/theme_provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,11 +32,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadInstitutionName();
-    // Initialize auto sync
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final autoSyncProvider = Provider.of<AutoSyncProvider>(context, listen: false);
-      autoSyncProvider.initialize();
-    });
   }
 
   @override
@@ -108,9 +98,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final autoSyncProvider = Provider.of<AutoSyncProvider>(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final screenSize = MediaQuery.of(context).size;
     final isMobile = screenSize.width < 600;
     final bannerHeight = screenSize.height * 0.22; // 22% of screen height
@@ -154,10 +141,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       {
         'icon': Icons.psychology,
-        'title': languageProvider.isUrdu ? 'اے آئی رپورٹنگ' : 'AI Reporting',
+        'title': languageProvider.isUrdu ? 'اے آئی اسسٹنٹ' : 'AI Assistant',
         'subtitle': languageProvider.isUrdu ? 'ذہانت سے تلاش' : 'Smart Search',
         'color': Colors.red,
-        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (context) => AIReportingScreen())),
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (context) => AIChatScreen())),
       },
     ];
     
@@ -194,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     padding: EdgeInsets.only(top: bannerHeight * 0.18, left: 24, right: 24),
                       child: Text(
                         _buildWelcomeMessage(_institutionName, languageProvider.isUrdu),
-                        style: GoogleFonts.montserrat(
+                        style: TextStyle(
                         fontSize: isMobile ? 22 : 28,
                         fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -219,19 +206,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                      IconButton(
-                        icon: Icon(Icons.settings, color: Colors.white, size: isMobile ? 24 : 28),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => AccountSettingsScreen()),
-                          );
-                          _loadInstitutionName();
-                        },
-                        tooltip: languageProvider.isUrdu ? 'ترتیبات' : 'Settings',
-                        padding: EdgeInsets.all(8),
-                        constraints: BoxConstraints(minWidth: 40, minHeight: 40),
-                      ),
+                      // Settings button removed - AccountSettingsScreen doesn't exist
                       SizedBox(height: 4),
                         IconButton(
                           icon: Text(
@@ -603,7 +578,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BudgetManagementScreen(),
+        builder: (context) => MadrasaBudgetScreen(),
       ),
     );
   }
@@ -704,7 +679,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 'budget':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => BudgetEnterDataScreen(type: 'income')),
+          MaterialPageRoute(builder: (context) => MadrasaBudgetScreen()),
         );
         break;
     }
@@ -727,7 +702,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case 'budget':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => BudgetManagementScreen()),
+          MaterialPageRoute(builder: (context) => MadrasaBudgetScreen()),
         );
         break;
     }
