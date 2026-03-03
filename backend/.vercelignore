@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.example
+*.log
+.DS_Store
+test/
+*.md
+.git/
+.gitignore
+server.js
+Spacefile
+.spaceignore
+DEPLOY_AUTOMATICALLY.bat
+setup.bat

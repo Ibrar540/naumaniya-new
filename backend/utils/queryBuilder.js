@@ -1,0 +1,197 @@
+/**
+ * Query Builder - Generates safe parameterized SQL queries
+ * Builds dynamic SQL based on parsed intent
+ */
+
+class QueryBuilder {
+  /**
+   * Build SQL query based on intent
+   * @param {Object} intent - Parsed intent from AIEngine
+   * @returns {Object} { query, params }
+   */
+  buildQuery(intent) {
+    const { module, type, section, year, month, intent: intentType } = intent;
+
+    switch (intentType) {
+      case 'total':
+        return this.buildTotalQuery(module, type, section, year, month);
+      
+      case 'net_balance':
+        return this.buildNetBalanceQuery(module, year, month);
+      
+      case 'compare':
+        return this.buildCompareQuery(module, type, section, year);
+      
+      case 'summary':
+        return this.buildSummaryQuery(module, year, month);
+      
+      case 'breakdown':
+        return this.buildBreakdownQuery(module, type, year, month);
+      
+      default:
+        return this.buildTotalQuery(module, type, section, year, month);
+    }
+  }
+
+  /**
+   * Build total query (SUM of amount)
+   */
+  buildTotalQuery(module, type, section, year, month) {
+    const tableName = `${module}_${type}`;
+    let query = `SELECT SUM(amount) as total FROM ${tableName} WHERE 1=1`;
+    const params = [];
+    let paramIndex = 1;
+
+    // Add year filter
+    if (year) {
+      query += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      params.push(year);
+      paramIndex++;
+    }
+
+    // Add month filter
+    if (month) {
+      query += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      params.push(month);
+      paramIndex++;
+    }
+
+    // Add section filter
+    if (section) {
+      query += ` AND LOWER(section_name) = $${paramIndex}`;
+      params.push(section.toLowerCase());
+      paramIndex++;
+    }
+
+    return { query, params };
+  }
+
+  /**
+   * Build net balance query (income - expenditure)
+   */
+  buildNetBalanceQuery(module, year, month) {
+    let incomeQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM ${module}_income WHERE 1=1`;
+    let expenseQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM ${module}_expenditure WHERE 1=1`;
+    const params = [];
+    let paramIndex = 1;
+
+    // Add year filter
+    if (year) {
+      incomeQuery += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      expenseQuery += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      params.push(year);
+      paramIndex++;
+    }
+
+    // Add month filter
+    if (month) {
+      incomeQuery += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      expenseQuery += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      params.push(month);
+      paramIndex++;
+    }
+
+    const query = `
+      SELECT 
+        (${incomeQuery}) as income,
+        (${expenseQuery}) as expenditure,
+        ((${incomeQuery}) - (${expenseQuery})) as net_balance
+    `;
+
+    return { query, params };
+  }
+
+  /**
+   * Build comparison query (year-wise comparison)
+   */
+  buildCompareQuery(module, type, section, baseYear) {
+    const tableName = `${module}_${type}`;
+    const year1 = baseYear || new Date().getFullYear();
+    const year2 = year1 - 1;
+
+    let query = `
+      SELECT 
+        EXTRACT(YEAR FROM date) as year,
+        SUM(amount) as total
+      FROM ${tableName}
+      WHERE EXTRACT(YEAR FROM date) IN ($1, $2)
+    `;
+    const params = [year1, year2];
+
+    // Add section filter if specified
+    if (section) {
+      query += ` AND LOWER(section_name) = $3`;
+      params.push(section.toLowerCase());
+    }
+
+    query += ` GROUP BY EXTRACT(YEAR FROM date) ORDER BY year DESC`;
+
+    return { query, params };
+  }
+
+  /**
+   * Build summary query (income, expenditure, net balance)
+   */
+  buildSummaryQuery(module, year, month) {
+    let conditions = '1=1';
+    const params = [];
+    let paramIndex = 1;
+
+    if (year) {
+      conditions += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      params.push(year);
+      paramIndex++;
+    }
+
+    if (month) {
+      conditions += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      params.push(month);
+      paramIndex++;
+    }
+
+    const query = `
+      SELECT 
+        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_income WHERE ${conditions}) as total_income,
+        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_expenditure WHERE ${conditions}) as total_expenditure,
+        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_income WHERE ${conditions}) - 
+        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_expenditure WHERE ${conditions}) as net_balance
+    `;
+
+    return { query, params };
+  }
+
+  /**
+   * Build breakdown query (section-wise breakdown)
+   */
+  buildBreakdownQuery(module, type, year, month) {
+    const tableName = `${module}_${type}`;
+    let query = `
+      SELECT 
+        section_name,
+        SUM(amount) as total,
+        COUNT(*) as count
+      FROM ${tableName}
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (year) {
+      query += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      params.push(year);
+      paramIndex++;
+    }
+
+    if (month) {
+      query += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      params.push(month);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY section_name ORDER BY total DESC`;
+
+    return { query, params };
+  }
+}
+
+module.exports = new QueryBuilder();

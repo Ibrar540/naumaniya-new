@@ -1,10 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/chat_message.dart';
 
 /// Conversational AI Chat Service
 /// Provides ChatGPT-like conversational interface for data queries
+/// Integrated with Node.js backend for financial queries
 class AIChatService {
   final List<ChatMessage> _conversationHistory = [];
+  
+  // Backend API URL - Update this with your deployed backend URL
+  static const String _backendUrl = 'http://localhost:3000/ai-query';
+  // For production, use: 'https://your-backend-url.com/ai-query'
 
   /// Get conversation history
   List<ChatMessage> get conversationHistory => List.unmodifiable(_conversationHistory);
@@ -25,20 +32,36 @@ class AIChatService {
     _conversationHistory.add(userChatMessage);
 
     try {
-      // Generate conversational response
-      final responseContent = _generateResponse(userMessage, isUrdu);
-      final suggestions = _generateSuggestions(userMessage, isUrdu);
+      // Check if query is financial (budget-related)
+      if (_isFinancialQuery(userMessage)) {
+        // Use backend AI for financial queries
+        final responseContent = await _queryBackendAI(userMessage, isUrdu);
+        final suggestions = _generateFinancialSuggestions(isUrdu);
 
-      // Create assistant message
-      final assistantMessage = ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: MessageRole.assistant,
-        content: responseContent,
-        suggestions: suggestions,
-      );
+        final assistantMessage = ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          role: MessageRole.assistant,
+          content: responseContent,
+          suggestions: suggestions,
+        );
 
-      _conversationHistory.add(assistantMessage);
-      return assistantMessage;
+        _conversationHistory.add(assistantMessage);
+        return assistantMessage;
+      } else {
+        // Use local response for non-financial queries
+        final responseContent = _generateResponse(userMessage, isUrdu);
+        final suggestions = _generateSuggestions(userMessage, isUrdu);
+
+        final assistantMessage = ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          role: MessageRole.assistant,
+          content: responseContent,
+          suggestions: suggestions,
+        );
+
+        _conversationHistory.add(assistantMessage);
+        return assistantMessage;
+      }
     } catch (e) {
       debugPrint('Error processing message: $e');
       
@@ -53,6 +76,93 @@ class AIChatService {
 
       _conversationHistory.add(errorMessage);
       return errorMessage;
+    }
+  }
+
+  /// Check if query is financial/budget-related
+  bool _isFinancialQuery(String message) {
+    final lowerMessage = message.toLowerCase();
+    final financialKeywords = [
+      'budget', 'income', 'expenditure', 'expense', 'masjid', 'madrasa',
+      'zakat', 'charity', 'donation', 'total', 'balance', 'summary',
+      'بجٹ', 'آمدنی', 'خرچ', 'مسجد', 'مدرسہ', 'زکوٰۃ', 'خیرات',
+      'کل', 'بیلنس', 'خلاصہ', 'اخراجات'
+    ];
+    
+    return financialKeywords.any((keyword) => lowerMessage.contains(keyword));
+  }
+
+  /// Query backend AI for financial queries
+  Future<String> _queryBackendAI(String message, bool isUrdu) async {
+    try {
+      final response = await http.post(
+        Uri.parse(_backendUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'message': message}),
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['success'] == true) {
+          // Format response based on intent
+          return _formatBackendResponse(data, isUrdu);
+        } else {
+          return isUrdu
+              ? 'معذرت، میں آپ کی درخواست کو پروسیس نہیں کر سکا۔'
+              : 'Sorry, I couldn\'t process your request.';
+        }
+      } else {
+        return isUrdu
+            ? 'سرور سے رابطہ میں خرابی۔ براہ کرم دوبارہ کوشش کریں۔'
+            : 'Server connection error. Please try again.';
+      }
+    } catch (e) {
+      debugPrint('Backend AI error: $e');
+      return isUrdu
+          ? 'AI سرور سے رابطہ نہیں ہو سکا۔ براہ کرم بعد میں کوشش کریں۔'
+          : 'Could not connect to AI server. Please try again later.';
+    }
+  }
+
+  /// Format backend response for display
+  String _formatBackendResponse(Map<String, dynamic> data, bool isUrdu) {
+    final intent = data['intent'];
+    final message = data['message'] ?? '';
+    
+    // Add emoji and formatting based on intent
+    switch (intent) {
+      case 'total':
+        return '💰 $message';
+      case 'net_balance':
+        return '📊 $message';
+      case 'compare':
+        return '📈 $message';
+      case 'summary':
+        return message; // Already has emoji
+      case 'breakdown':
+        return message; // Already has emoji
+      default:
+        return message;
+    }
+  }
+
+  /// Generate financial suggestions
+  List<String> _generateFinancialSuggestions(bool isUrdu) {
+    if (isUrdu) {
+      return [
+        'مسجد کی کل آمدنی 2025',
+        'مدرسہ کا خرچ 2024',
+        'مسجد کا خلاصہ 2025',
+        'زکوٰۃ آمدنی 2025',
+      ];
+    } else {
+      return [
+        'Total income of masjid in 2025',
+        'Madrasa expenditure 2024',
+        'Financial summary of masjid 2025',
+        'Zakat income in 2025',
+      ];
     }
   }
 
@@ -169,29 +279,29 @@ class AIChatService {
             'میں آپ کی مدد کر سکتا ہوں:\n'
             '• طلباء کی معلومات تلاش کرنے میں\n'
             '• اساتذہ کے ریکارڈز دیکھنے میں\n'
-            '• بجٹ اور مالیاتی رپورٹس بنانے میں\n'
+            '• بجٹ اور مالیاتی رپورٹس بنانے میں (AI Powered)\n'
             '• کلاسز کی تفصیلات دیکھنے میں\n\n'
             'آپ مجھ سے اردو یا انگریزی میں کچھ بھی پوچھ سکتے ہیں!'
         : '👋 Hello! I\'m your AI Assistant.\n\n'
             'I can help you with:\n'
             '• Finding student information\n'
             '• Viewing teacher records\n'
-            '• Generating budget and financial reports\n'
+            '• Generating budget and financial reports (AI Powered)\n'
             '• Checking class details\n\n'
             'Feel free to ask me anything in English or Urdu!';
 
     final suggestions = isUrdu
         ? [
+            'مسجد کی کل آمدنی 2025',
+            'مدرسہ کا خرچ 2024',
+            'مسجد کا خلاصہ 2025',
             'تمام فعال طلباء دکھائیں',
-            'اساتذہ کی کل تعداد کیا ہے؟',
-            '2024 کا بجٹ رپورٹ دکھائیں',
-            'کلاس A میں کتنے طلباء ہیں؟',
           ]
         : [
+            'Total income of masjid in 2025',
+            'Madrasa expenditure 2024',
+            'Financial summary of masjid 2025',
             'Show all active students',
-            'How many teachers do we have?',
-            'Show budget report for 2024',
-            'How many students are in class A?',
           ];
 
     return ChatMessage(
