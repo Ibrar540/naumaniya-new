@@ -15,6 +15,7 @@ class ChatMessage {
   final List<ChatAction>? actions;
   final dynamic data; // For storing query results
   final bool isLoading;
+  final bool canExport; // For export/print functionality
 
   ChatMessage({
     required this.id,
@@ -25,6 +26,7 @@ class ChatMessage {
     this.actions,
     this.data,
     this.isLoading = false,
+    this.canExport = false,
   }) : timestamp = timestamp ?? DateTime.now();
 
   ChatMessage copyWith({
@@ -36,6 +38,7 @@ class ChatMessage {
     List<ChatAction>? actions,
     dynamic data,
     bool? isLoading,
+    bool? canExport,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class ChatMessage {
       actions: actions ?? this.actions,
       data: data ?? this.data,
       isLoading: isLoading ?? this.isLoading,
+      canExport: canExport ?? this.canExport,
     );
   }
 }

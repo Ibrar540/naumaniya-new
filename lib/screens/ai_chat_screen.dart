@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../providers/language_provider.dart';
 import '../services/ai_chat_service.dart';
 import '../models/chat_message.dart';
 import '../widgets/voice_input_button.dart';
 import '../screens/home_screen.dart';
+import '../utils/ai_export_utils.dart';
 import 'dart:ui' as dart_ui;
 
 class AIChatScreen extends StatefulWidget {
@@ -22,6 +24,9 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
   
   List<ChatMessage> _messages = [];
   bool _isTyping = false;
+  List<String> _dynamicSuggestions = [];
+  Timer? _debounceTimer;
+  bool _showSuggestions = false;
 
   @override
   void initState() {
@@ -33,7 +38,33 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onTextChanged(String text) {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+    
+    // Start new timer for debounced suggestion fetching
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (text.trim().isNotEmpty && text.trim().length > 2) {
+        final suggestions = await _chatService.getSuggestions(text);
+        if (mounted) {
+          setState(() {
+            _dynamicSuggestions = suggestions;
+            _showSuggestions = suggestions.isNotEmpty;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _dynamicSuggestions = [];
+            _showSuggestions = false;
+          });
+        }
+      }
+    });
   }
 
   void _initializeChat() {
@@ -51,6 +82,8 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
     
     setState(() {
       _isTyping = true;
+      _showSuggestions = false; // Hide suggestions when sending
+      _dynamicSuggestions = [];
     });
 
     _messageController.clear();
@@ -94,6 +127,68 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
         );
       }
     });
+  }
+
+  Future<void> _exportMessage(ChatMessage message) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
+    try {
+      final filePath = await AIExportUtils.exportToPDF(
+        message.content,
+        message.data as Map<String, dynamic>?,
+      );
+      
+      if (filePath != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu
+                ? 'PDF محفوظ ہو گیا: $filePath'
+                : 'PDF saved: $filePath'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: languageProvider.isUrdu ? 'کھولیں' : 'Open',
+              textColor: Colors.white,
+              onPressed: () {
+                // Open file
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu
+                ? 'ایکسپورٹ میں خرابی: $e'
+                : 'Export error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _printMessage(ChatMessage message) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
+    try {
+      await AIExportUtils.printReport(
+        message.content,
+        message.data as Map<String, dynamic>?,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(languageProvider.isUrdu
+                ? 'پرنٹ میں خرابی: $e'
+                : 'Print error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _clearChat() {
@@ -204,45 +299,82 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
             ),
           ),
 
-          // Input area
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha((0.1 * 255).toInt()),
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            padding: EdgeInsets.all(16),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: isUrdu
-                            ? 'اپنا سوال یہاں لکھیں...'
-                            : 'Type your question here...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: _sendMessage,
+          // Suggestions and Input area
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Dynamic suggestions
+              if (_showSuggestions && _dynamicSuggestions.isNotEmpty)
+                Container(
+                  constraints: BoxConstraints(maxHeight: 150),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      top: BorderSide(color: Colors.grey[300]!),
                     ),
                   ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _dynamicSuggestions.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(Icons.lightbulb_outline, size: 18, color: Color(0xFF1976D2)),
+                        title: Text(
+                          _dynamicSuggestions[index],
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        onTap: () {
+                          _messageController.text = _dynamicSuggestions[index];
+                          setState(() {
+                            _showSuggestions = false;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+              
+              // Input area
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((0.1 * 255).toInt()),
+                      blurRadius: 10,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.all(16),
+                child: SafeArea(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _messageController,
+                          onChanged: _onTextChanged,
+                          decoration: InputDecoration(
+                            hintText: isUrdu
+                                ? 'اپنا سوال یہاں لکھیں...'
+                                : 'Type your question here...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[50],
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                          ),
+                          maxLines: null,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: _sendMessage,
+                        ),
+                      ),
                   SizedBox(width: 8),
                   VoiceInputButton(
                     isUrdu: isUrdu,
@@ -262,6 +394,8 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
                 ],
               ),
             ),
+          ),
+            ],
           ),
         ],
       ),
@@ -321,6 +455,36 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
                           ),
                         ),
                       ),
+                      
+                      // Export buttons for AI responses with data
+                      if (!isUser && message.canExport) ...[
+                        SizedBox(height: 12),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton.icon(
+                              icon: Icon(Icons.download, size: 16),
+                              label: Text(isUrdu ? 'ڈاؤن لوڈ' : 'Download'),
+                              onPressed: () => _exportMessage(message),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF1976D2),
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: Icon(Icons.print, size: 16),
+                              label: Text(isUrdu ? 'پرنٹ' : 'Print'),
+                              onPressed: () => _printMessage(message),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF1976D2),
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      
                       if (!isUser && message.suggestions != null && message.suggestions!.isNotEmpty) ...[
                         SizedBox(height: 12),
                         Divider(color: Colors.grey[300]),

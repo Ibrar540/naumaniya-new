@@ -168,7 +168,8 @@ class AIEngine {
       return currentYear;
     }
 
-    return currentYear; // Default to current year
+    // Don't default to current year - return null if no year specified
+    return null;
   }
 
   /**
@@ -187,7 +188,8 @@ class AIEngine {
       return lastMonth === 0 ? 12 : lastMonth;
     }
 
-    return null; // No specific month mentioned
+    // Don't default to current month - return null if no month specified
+    return null;
   }
 
   /**

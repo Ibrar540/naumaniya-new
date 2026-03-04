@@ -236,6 +236,136 @@ app.get('/years', async (req, res) => {
 });
 
 /**
+ * Get AI suggestions based on partial input
+ */
+app.post('/ai-suggestions', async (req, res) => {
+  try {
+    const { input } = req.body;
+
+    if (!input || typeof input !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Input is required'
+      });
+    }
+
+    const lowerInput = input.toLowerCase();
+    const suggestions = [];
+
+    // Get available sections
+    const sectionsQuery = `SELECT DISTINCT name FROM sections LIMIT 10`;
+    const sectionsResult = await db.query(sectionsQuery, []);
+    const sections = sectionsResult.rows.map(row => row.name);
+
+    // Get available years
+    const yearsQuery = `
+      SELECT DISTINCT EXTRACT(YEAR FROM date) as year 
+      FROM (
+        SELECT date FROM masjid_income
+        UNION SELECT date FROM masjid_expenditure
+        UNION SELECT date FROM madrasa_income
+        UNION SELECT date FROM madrasa_expenditure
+      ) AS all_dates
+      WHERE date IS NOT NULL
+      ORDER BY year DESC
+      LIMIT 5
+    `;
+    const yearsResult = await db.query(yearsQuery, []);
+    const years = yearsResult.rows.map(row => parseInt(row.year));
+
+    // Generate suggestions based on input
+    const currentYear = new Date().getFullYear();
+    const lastYear = currentYear - 1;
+
+    // Total queries
+    if (lowerInput.includes('total') || lowerInput.includes('کل')) {
+      suggestions.push(`Total income of masjid in ${currentYear}`);
+      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
+      if (sections.length > 0) {
+        suggestions.push(`Total income from ${sections[0]} in ${currentYear}`);
+      }
+    }
+
+    // Summary queries
+    if (lowerInput.includes('summary') || lowerInput.includes('خلاصہ')) {
+      suggestions.push(`Financial summary of masjid ${currentYear}`);
+      suggestions.push(`Financial summary of madrasa ${currentYear}`);
+    }
+
+    // Compare queries
+    if (lowerInput.includes('compare') || lowerInput.includes('موازنہ')) {
+      suggestions.push(`Compare masjid income ${lastYear} and ${currentYear}`);
+      suggestions.push(`Compare madrasa expenditure ${lastYear} and ${currentYear}`);
+    }
+
+    // Net balance queries
+    if (lowerInput.includes('balance') || lowerInput.includes('بیلنس')) {
+      suggestions.push(`Net balance of masjid in ${currentYear}`);
+      suggestions.push(`Net balance of madrasa in ${currentYear}`);
+    }
+
+    // Breakdown queries
+    if (lowerInput.includes('breakdown') || lowerInput.includes('تفصیل')) {
+      suggestions.push(`Breakdown of masjid income ${currentYear}`);
+      suggestions.push(`Breakdown of madrasa expenditure ${currentYear}`);
+    }
+
+    // Module-specific suggestions
+    if (lowerInput.includes('masjid') || lowerInput.includes('مسجد')) {
+      suggestions.push(`Total income of masjid in ${currentYear}`);
+      suggestions.push(`Total expenditure of masjid in ${currentYear}`);
+      suggestions.push(`Financial summary of masjid ${currentYear}`);
+    }
+
+    if (lowerInput.includes('madrasa') || lowerInput.includes('مدرسہ')) {
+      suggestions.push(`Total income of madrasa in ${currentYear}`);
+      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
+      suggestions.push(`Financial summary of madrasa ${currentYear}`);
+    }
+
+    // Section-specific suggestions
+    for (const section of sections.slice(0, 3)) {
+      if (lowerInput.includes(section.toLowerCase())) {
+        suggestions.push(`Total income from ${section} in ${currentYear}`);
+        suggestions.push(`${section} expenditure in ${currentYear}`);
+      }
+    }
+
+    // Year-specific suggestions
+    for (const year of years.slice(0, 2)) {
+      if (lowerInput.includes(year.toString())) {
+        suggestions.push(`Total income of masjid in ${year}`);
+        suggestions.push(`Financial summary of madrasa ${year}`);
+      }
+    }
+
+    // Default suggestions if no match
+    if (suggestions.length === 0) {
+      suggestions.push(`Total income of masjid in ${currentYear}`);
+      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
+      suggestions.push(`Financial summary of masjid ${currentYear}`);
+      suggestions.push(`Net balance of masjid in ${currentYear}`);
+      suggestions.push(`Compare income ${lastYear} and ${currentYear}`);
+    }
+
+    // Remove duplicates and limit to 8 suggestions
+    const uniqueSuggestions = [...new Set(suggestions)].slice(0, 8);
+
+    res.json({
+      success: true,
+      suggestions: uniqueSuggestions
+    });
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate suggestions'
+    });
+  }
+});
+
+/**
  * Test database connection
  */
 app.get('/test-db', async (req, res) => {
