@@ -34,31 +34,36 @@ class QueryBuilder {
   }
 
   /**
-   * Build total query (SUM of amount)
+   * Build total query (SUM of rs)
    */
   buildTotalQuery(module, type, section, year, month) {
     const tableName = `${module}_${type}`;
-    let query = `SELECT SUM(amount) as total FROM ${tableName} WHERE 1=1`;
+    let query = `
+      SELECT SUM(t.rs) as total 
+      FROM ${tableName} t
+      LEFT JOIN sections s ON t.section_id = s.id
+      WHERE 1=1
+    `;
     const params = [];
     let paramIndex = 1;
 
     // Add year filter
     if (year) {
-      query += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      query += ` AND EXTRACT(YEAR FROM t.date) = $${paramIndex}`;
       params.push(year);
       paramIndex++;
     }
 
     // Add month filter
     if (month) {
-      query += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      query += ` AND EXTRACT(MONTH FROM t.date) = $${paramIndex}`;
       params.push(month);
       paramIndex++;
     }
 
     // Add section filter
     if (section) {
-      query += ` AND LOWER(section_name) = $${paramIndex}`;
+      query += ` AND LOWER(s.name) = $${paramIndex}`;
       params.push(section.toLowerCase());
       paramIndex++;
     }
@@ -70,8 +75,8 @@ class QueryBuilder {
    * Build net balance query (income - expenditure)
    */
   buildNetBalanceQuery(module, year, month) {
-    let incomeQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM ${module}_income WHERE 1=1`;
-    let expenseQuery = `SELECT COALESCE(SUM(amount), 0) as total FROM ${module}_expenditure WHERE 1=1`;
+    let incomeQuery = `SELECT COALESCE(SUM(rs), 0) as total FROM ${module}_income WHERE 1=1`;
+    let expenseQuery = `SELECT COALESCE(SUM(rs), 0) as total FROM ${module}_expenditure WHERE 1=1`;
     const params = [];
     let paramIndex = 1;
 
@@ -111,20 +116,21 @@ class QueryBuilder {
 
     let query = `
       SELECT 
-        EXTRACT(YEAR FROM date) as year,
-        SUM(amount) as total
-      FROM ${tableName}
-      WHERE EXTRACT(YEAR FROM date) IN ($1, $2)
+        EXTRACT(YEAR FROM t.date) as year,
+        SUM(t.rs) as total
+      FROM ${tableName} t
+      LEFT JOIN sections s ON t.section_id = s.id
+      WHERE EXTRACT(YEAR FROM t.date) IN ($1, $2)
     `;
     const params = [year1, year2];
 
     // Add section filter if specified
     if (section) {
-      query += ` AND LOWER(section_name) = $3`;
+      query += ` AND LOWER(s.name) = $3`;
       params.push(section.toLowerCase());
     }
 
-    query += ` GROUP BY EXTRACT(YEAR FROM date) ORDER BY year DESC`;
+    query += ` GROUP BY EXTRACT(YEAR FROM t.date) ORDER BY year DESC`;
 
     return { query, params };
   }
@@ -151,10 +157,10 @@ class QueryBuilder {
 
     const query = `
       SELECT 
-        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_income WHERE ${conditions}) as total_income,
-        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_expenditure WHERE ${conditions}) as total_expenditure,
-        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_income WHERE ${conditions}) - 
-        (SELECT COALESCE(SUM(amount), 0) FROM ${module}_expenditure WHERE ${conditions}) as net_balance
+        (SELECT COALESCE(SUM(rs), 0) FROM ${module}_income WHERE ${conditions}) as total_income,
+        (SELECT COALESCE(SUM(rs), 0) FROM ${module}_expenditure WHERE ${conditions}) as total_expenditure,
+        (SELECT COALESCE(SUM(rs), 0) FROM ${module}_income WHERE ${conditions}) - 
+        (SELECT COALESCE(SUM(rs), 0) FROM ${module}_expenditure WHERE ${conditions}) as net_balance
     `;
 
     return { query, params };
@@ -167,28 +173,29 @@ class QueryBuilder {
     const tableName = `${module}_${type}`;
     let query = `
       SELECT 
-        section_name,
-        SUM(amount) as total,
+        s.name as section_name,
+        SUM(t.rs) as total,
         COUNT(*) as count
-      FROM ${tableName}
+      FROM ${tableName} t
+      LEFT JOIN sections s ON t.section_id = s.id
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
 
     if (year) {
-      query += ` AND EXTRACT(YEAR FROM date) = $${paramIndex}`;
+      query += ` AND EXTRACT(YEAR FROM t.date) = $${paramIndex}`;
       params.push(year);
       paramIndex++;
     }
 
     if (month) {
-      query += ` AND EXTRACT(MONTH FROM date) = $${paramIndex}`;
+      query += ` AND EXTRACT(MONTH FROM t.date) = $${paramIndex}`;
       params.push(month);
       paramIndex++;
     }
 
-    query += ` GROUP BY section_name ORDER BY total DESC`;
+    query += ` GROUP BY s.name ORDER BY total DESC`;
 
     return { query, params };
   }

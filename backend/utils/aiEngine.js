@@ -106,19 +106,11 @@ class AIEngine {
    */
   async detectSection(message) {
     try {
-      // Get all unique section names from all tables
-      const query = `
-        SELECT DISTINCT section_name FROM masjid_income
-        UNION
-        SELECT DISTINCT section_name FROM masjid_expenditure
-        UNION
-        SELECT DISTINCT section_name FROM madrasa_income
-        UNION
-        SELECT DISTINCT section_name FROM madrasa_expenditure
-      `;
+      // Get all unique section names from sections table
+      const query = `SELECT DISTINCT name FROM sections ORDER BY name`;
       
       const result = await db.query(query, []);
-      const sections = result.rows.map(row => row.section_name.toLowerCase());
+      const sections = result.rows.map(row => row.name.toLowerCase());
 
       // Check if any section name is mentioned in the message
       for (const section of sections) {

@@ -103,15 +103,20 @@ app.get('/sections', async (req, res) => {
       });
     }
 
-    const tableName = `${module}_${type}`;
-    const query = `SELECT DISTINCT section_name FROM ${tableName} ORDER BY section_name`;
-    const result = await db.query(query, []);
+    // Get sections from sections table filtered by institution and type
+    const query = `
+      SELECT DISTINCT name 
+      FROM sections 
+      WHERE institution = $1 AND type = $2
+      ORDER BY name
+    `;
+    const result = await db.query(query, [module, type]);
     
     res.json({
       success: true,
       module,
       type,
-      sections: result.rows.map(row => row.section_name)
+      sections: result.rows.map(row => row.name)
     });
 
   } catch (error) {
