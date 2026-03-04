@@ -103,6 +103,7 @@ class AIEngine {
 
   /**
    * Detect section name from database
+   * Enhanced to match section names more intelligently
    */
   async detectSection(message) {
     try {
@@ -110,18 +111,38 @@ class AIEngine {
       const query = `SELECT DISTINCT name FROM sections ORDER BY name`;
       
       const result = await db.query(query, []);
-      const sections = result.rows.map(row => row.name.toLowerCase());
+      
+      if (result.rows.length === 0) {
+        return null;
+      }
 
-      // Check if any section name is mentioned in the message
+      const sections = result.rows.map(row => ({
+        original: row.name,
+        lower: row.name.toLowerCase()
+      }));
+
+      // First pass: exact match (case-insensitive)
       for (const section of sections) {
-        if (message.includes(section)) {
-          return section;
+        if (message.includes(section.lower)) {
+          console.log(`✅ Section detected (exact match): "${section.original}"`);
+          return section.lower;
+        }
+      }
+
+      // Second pass: word boundary match
+      const messageWords = message.split(/\s+/);
+      for (const section of sections) {
+        for (const word of messageWords) {
+          if (word === section.lower) {
+            console.log(`✅ Section detected (word match): "${section.original}"`);
+            return section.lower;
+          }
         }
       }
 
       return null; // No specific section mentioned
     } catch (error) {
-      console.error('Error detecting section:', error);
+      console.error('❌ Error detecting section:', error);
       return null;
     }
   }

@@ -72,8 +72,23 @@ app.post('/ai-query', async (req, res) => {
 
     console.log('🤖 Processing query:', message);
 
+    // Parse intent from message
     const intent = await aiEngine.parse(message);
+    console.log('📋 Parsed intent:', JSON.stringify(intent, null, 2));
+
+    // If no section detected, try dynamic section detection
+    if (!intent.section && intent.module && intent.type !== 'both') {
+      const dynamicSection = await detectDynamicSection(message.toLowerCase(), intent.module, intent.type);
+      if (dynamicSection) {
+        intent.section = dynamicSection;
+        console.log('✨ Dynamic section detected:', dynamicSection);
+      }
+    }
+
     const { query, params } = queryBuilder.buildQuery(intent);
+    console.log('🔍 SQL Query:', query);
+    console.log('📊 Parameters:', params);
+
     const queryResult = await db.query(query, params);
     const response = responseFormatter.formatResponse(intent, queryResult);
 
@@ -88,6 +103,59 @@ app.post('/ai-query', async (req, res) => {
     });
   }
 });
+
+/**
+ * Dynamic section detection helper
+ * Queries database to find sections matching words in the message
+ */
+async function detectDynamicSection(message, module, type) {
+  try {
+    // Get all sections for the specific module and type
+    const query = `
+      SELECT DISTINCT name 
+      FROM sections 
+      WHERE LOWER(institution) = $1 AND LOWER(type) = $2
+      ORDER BY name
+    `;
+    const result = await db.query(query, [module.toLowerCase(), type.toLowerCase()]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    // Extract words from message (remove common words)
+    const commonWords = ['give', 'me', 'total', 'income', 'expenditure', 'expense', 
+                         'from', 'of', 'in', 'for', 'the', 'a', 'an', 'masjid', 
+                         'madrasa', 'مسجد', 'مدرسہ', 'آمدنی', 'خرچ', 'کل'];
+    const messageWords = message.split(/\s+/).filter(word => 
+      word.length > 1 && !commonWords.includes(word.toLowerCase())
+    );
+
+    // Check each section name against message words
+    for (const row of result.rows) {
+      const sectionName = row.name.toLowerCase();
+      
+      // Check if section name appears as a whole word or part of message
+      if (message.includes(sectionName)) {
+        console.log(`🎯 Found section match: "${row.name}" in message`);
+        return sectionName;
+      }
+
+      // Check if any message word matches section name
+      for (const word of messageWords) {
+        if (word.toLowerCase() === sectionName || sectionName.includes(word.toLowerCase())) {
+          console.log(`🎯 Found section match: "${row.name}" via word "${word}"`);
+          return sectionName;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Error in dynamic section detection:', error);
+    return null;
+  }
+}
 
 /**
  * Get sections endpoint
