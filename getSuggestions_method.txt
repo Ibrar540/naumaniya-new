@@ -1,0 +1,35 @@
+
+  /// Get dynamic suggestions based on user input
+  Future<List<String>> getSuggestions(String input) async {
+    if (input.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      debugPrint('🔍 Fetching suggestions for: $input');
+      
+      final response = await http.post(
+        Uri.parse('https://naumaniya-new.vercel.app/ai-suggestions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode({'input': input}),
+      ).timeout(const Duration(seconds: 5));
+
+      debugPrint('📊 Suggestions response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['suggestions'] != null) {
+          final suggestions = List<String>.from(data['suggestions']);
+          debugPrint('✅ Got ${suggestions.length} suggestions');
+          return suggestions;
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error fetching suggestions: $e');
+      return [];
+    }
+  }
