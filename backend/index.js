@@ -8,9 +8,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 const db = require('./config/db');
-const aiEngine = require('./utils/aiEngine');
-const queryBuilder = require('./utils/queryBuilder');
-const responseFormatter = require('./utils/responseFormatter');
+const aiEngine = require('./services/aiEngine');
+const queryBuilder = require('./services/queryBuilder');
+const responseFormatter = require('./services/responseFormatter');
 
 // Initialize Express app
 const app = express();
