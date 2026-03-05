@@ -11,6 +11,8 @@ const db = require('./config/db');
 const aiEngine = require('./services/aiEngine');
 const queryBuilder = require('./services/queryBuilder');
 const responseFormatter = require('./services/responseFormatter');
+const authRoutes = require('./routes/authRoutes');
+const { authenticate, requireActive } = require('./middleware/authMiddleware');
 
 // Initialize Express app
 const app = express();
@@ -19,7 +21,7 @@ const app = express();
 app.use(helmet());
 app.use(cors({
   origin: '*', // Deta handles CORS
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
 app.use(express.json());
@@ -30,6 +32,9 @@ app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.path} - ${new Date().toISOString()}`);
   next();
 });
+
+// Auth routes
+app.use('/auth', authRoutes);
 
 /**
  * Health check endpoint
@@ -50,9 +55,9 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Main AI Query endpoint
+ * Main AI Query endpoint (Protected - requires authentication)
  */
-app.post('/ai-query', async (req, res) => {
+app.post('/ai-query', authenticate, requireActive, async (req, res) => {
   try {
     const { message } = req.body;
 
