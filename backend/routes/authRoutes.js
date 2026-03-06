@@ -32,12 +32,14 @@ router.post('/login', async (req, res) => {
   try {
     const { name, password } = req.body;
     const result = await authService.login(name, password);
-    res.json(result);
+    // Return clear JSON response and appropriate status code
+    if (result && result.success) {
+      return res.json(result);
+    }
+    return res.status(200).json({ success: false, error: result.error || 'Login failed' });
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: error.message,
-    });
+    console.error('Auth route /login error:', error.message || error);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

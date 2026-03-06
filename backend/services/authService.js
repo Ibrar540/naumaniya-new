@@ -9,9 +9,15 @@ const db = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRY = '7d'; // Token expires in 7 days
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || '10', 10);
 
 class AuthService {
+  constructor() {
+    // Ensure default admin exists on startup (safe to call multiple times)
+    this.ensureDefaultAdmin().catch(err => {
+      console.error('Error ensuring default admin:', err.message || err);
+    });
+  }
   /**
    * Register a new user
    */
@@ -73,9 +79,10 @@ class AuthService {
    */
   async login(name, password) {
     try {
+      console.log(`🔐 Login attempt for user=${name} at ${new Date().toISOString()}`);
       // Validate input
       if (!name || !password) {
-        throw new Error('Name and password are required');
+        return { success: false, error: 'Name and password are required' };
       }
 
       // Get user
@@ -85,27 +92,36 @@ class AuthService {
       );
 
       if (result.rows.length === 0) {
-        throw new Error('Invalid credentials');
+        console.warn(`⚠️ Login failed - user not found: ${name}`);
+        return { success: false, error: 'Invalid credentials' };
       }
 
       const user = result.rows[0];
 
       // Check if user is active
       if (!user.is_active) {
-        throw new Error('Account is deactivated');
+        console.warn(`⚠️ Login failed - account deactivated for user: ${name}`);
+        return { success: false, error: 'Account is deactivated' };
       }
 
       // Verify password
-      const isValidPassword = await bcrypt.compare(password, user.password_hash);
-      if (!isValidPassword) {
-        throw new Error('Invalid credentials');
+      const validPassword = await bcrypt.compare(password, user.password_hash);
+      if (!validPassword) {
+        console.warn(`⚠️ Login failed - invalid password for user: ${name}`);
+        return { success: false, error: 'Invalid credentials' };
       }
 
       // Generate token
       const token = this.generateToken(user);
 
-      // Save session
-      await this.createSession(user.id, token);
+      // Save session (don't fail login if session save errors)
+      try {
+        await this.createSession(user.id, token);
+      } catch (sessionErr) {
+        console.error('Warning: failed to create session:', sessionErr.message || sessionErr);
+      }
+
+      console.log(`✅ Login successful for user=${name}`);
 
       return {
         success: true,
@@ -118,8 +134,32 @@ class AuthService {
         token,
       };
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      console.error('Login error:', error.message || error);
+      return { success: false, error: 'Internal server error' };
+    }
+  }
+
+  /** Ensure default admin exists; create it if missing (hashed password) */
+  async ensureDefaultAdmin() {
+    try {
+      const adminName = process.env.DEFAULT_ADMIN_NAME || 'admin';
+      const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+
+      const r = await db.query('SELECT id FROM users WHERE name = $1', [adminName]);
+      if (r.rows.length > 0) {
+        console.log(`✅ Default admin user '${adminName}' already exists`);
+        return;
+      }
+
+      const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+      const insert = await db.query(
+        `INSERT INTO users (name, password_hash, role, is_active, created_at) VALUES ($1, $2, 'admin', true, CURRENT_TIMESTAMP) RETURNING id`,
+        [adminName, passwordHash]
+      );
+      console.log(`🔧 Created default admin '${adminName}' with id=${insert.rows[0].id}`);
+    } catch (err) {
+      console.error('❌ Failed to ensure default admin:', err.message || err);
+      throw err;
     }
   }
 
