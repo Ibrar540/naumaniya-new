@@ -302,8 +302,7 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                         backgroundColor: Colors.teal,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15),
+                                          borderRadius: BorderRadius.circular(15),
                                         ),
                                         elevation: 8,
                                         textStyle: TextStyle(
@@ -311,56 +310,54 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                  if (!_isAdmin) ...[
-                                    SizedBox(height: 12),
-                                    Text(
-                                      'You have read-only access. Request admin to add records.',
-                                      style: TextStyle(color: Colors.red),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    SizedBox(height: 8),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        onPressed: () async {
-                                          final reason = await showDialog<String?>(
-                                            context: context,
-                                            builder: (ctx) {
-                                              final controller = TextEditingController();
-                                              return AlertDialog(
-                                                title: Text('Request Admin Access'),
-                                                content: TextField(
-                                                  controller: controller,
-                                                  decoration: InputDecoration(hintText: 'Reason'),
-                                                ),
-                                                actions: [
-                                                  TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
-                                                  TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text('Send')),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                          if (reason != null && reason.isNotEmpty) {
-                                            final ok = await _auth.requestAdminAccess(reason);
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Request submitted' : 'Request failed')));
-                                          }
-                                        },
-                                        child: Text('Request Admin Access'),
-                                      ),
-                                    ),
-                                  ],
                                       child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(Icons.check_circle, size: 24),
                                           SizedBox(width: 8),
-                                          Text(languageProvider
-                                              .getText('submit')),
+                                          Text(languageProvider.getText('submit')),
                                         ],
                                       ),
                                     ),
                                   ),
+                            if (!_isAdmin) ...[
+                              SizedBox(height: 12),
+                              Text(
+                                'You have read-only access. Request admin to add records.',
+                                style: TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    final reason = await showDialog<String?>(
+                                      context: context,
+                                      builder: (ctx) {
+                                        final controller = TextEditingController();
+                                        return AlertDialog(
+                                          title: Text('Request Admin Access'),
+                                          content: TextField(
+                                            controller: controller,
+                                            decoration: InputDecoration(hintText: 'Reason'),
+                                          ),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+                                            TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text('Send')),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                    if (reason != null && reason.isNotEmpty) {
+                                      final ok = await _auth.requestAdminAccess(reason);
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Request submitted' : 'Request failed')));
+                                    }
+                                  },
+                                  child: Text('Request Admin Access'),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
