@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../models/section.dart';
 import '../providers/language_provider.dart';
 import '../models/income.dart';
@@ -33,11 +34,21 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
   late String _selectedType;
   bool _isLoading = false;
   final BudgetProvider _budgetProvider = BudgetProvider();
+  final AuthService _auth = AuthService();
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.type;
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
+    setState(() {
+      _isAdmin = _auth.isAdmin;
+    });
   }
 
   Future<void> _pickDate(BuildContext context) async {
@@ -286,7 +297,7 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                     width: double.infinity,
                                     height: 56,
                                     child: ElevatedButton(
-                                      onPressed: _submitData,
+                                      onPressed: !_isAdmin ? null : _submitData,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.teal,
                                         foregroundColor: Colors.white,
@@ -300,6 +311,44 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
+                                  if (!_isAdmin) ...[
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'You have read-only access. Request admin to add records.',
+                                      style: TextStyle(color: Colors.red),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: () async {
+                                          final reason = await showDialog<String?>(
+                                            context: context,
+                                            builder: (ctx) {
+                                              final controller = TextEditingController();
+                                              return AlertDialog(
+                                                title: Text('Request Admin Access'),
+                                                content: TextField(
+                                                  controller: controller,
+                                                  decoration: InputDecoration(hintText: 'Reason'),
+                                                ),
+                                                actions: [
+                                                  TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+                                                  TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text('Send')),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          if (reason != null && reason.isNotEmpty) {
+                                            final ok = await _auth.requestAdminAccess(reason);
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Request submitted' : 'Request failed')));
+                                          }
+                                        },
+                                        child: Text('Request Admin Access'),
+                                      ),
+                                    ),
+                                  ],
                                       child: Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,

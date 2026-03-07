@@ -186,6 +186,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         appBar: AppBar(
           title: Text(isUrdu ? 'ترتیبات' : 'Settings'),
           bottom: TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold),
             tabs: [
               Tab(text: isUrdu ? 'پروفائل' : 'Profile'),
               Tab(text: isUrdu ? 'صارفین' : 'Users'),

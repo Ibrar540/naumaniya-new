@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/auto_sync_provider.dart';
+import '../services/auth_service.dart';
 import '../models/student.dart';
 import '../db/database_helper.dart';
 import '../widgets/voice_input_button.dart';
@@ -31,6 +32,8 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
   DateTime? _graduationDate;
   DateTime? _leftDate;
   bool _isLoading = false;
+  final AuthService _auth = AuthService();
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -58,6 +61,14 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
       _admissionDate = DateTime.now();
       _statusController.text = 'Active'; // Default status
     }
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
+    setState(() {
+      _isAdmin = _auth.isAdmin;
+    });
   }
 
   void _pickDate() async {
@@ -541,7 +552,7 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                             width: double.infinity,
                             height: 56,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _saveStudent,
+                              onPressed: (!_isAdmin || _isLoading) ? null : _saveStudent,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFF1976D2),
                                 foregroundColor: Colors.white,
@@ -578,6 +589,38 @@ class _StudentEnterDataScreenState extends State<StudentEnterDataScreen> {
                                     ),
                             ),
                           ),
+
+                                  if (!_isAdmin) ...[
+                                    SizedBox(height: 12),
+                                    Text('You have read-only access. Request admin to add students.', style: TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                                    SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: () async {
+                                          final reason = await showDialog<String?>(
+                                            context: context,
+                                            builder: (ctx) {
+                                              final controller = TextEditingController();
+                                              return AlertDialog(
+                                                title: Text('Request Admin Access'),
+                                                content: TextField(controller: controller, decoration: InputDecoration(hintText: 'Reason')),
+                                                actions: [
+                                                  TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+                                                  TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text('Send')),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          if (reason != null && reason.isNotEmpty) {
+                                            final ok = await _auth.requestAdminAccess(reason);
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Request submitted' : 'Request failed')));
+                                          }
+                                        },
+                                        child: Text('Request Admin Access'),
+                                      ),
+                                    ),
+                                  ],
 
                           SizedBox(height: 20),
                         ],

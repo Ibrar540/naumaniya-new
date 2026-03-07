@@ -8,6 +8,7 @@ import '../models/teacher.dart';
 import '../widgets/voice_input_button.dart';
 import 'home_screen.dart';
 import '../providers/teacher_provider.dart';
+import '../services/auth_service.dart';
 
 class TeacherEnterDataScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -29,6 +30,8 @@ class _TeacherEnterDataScreenState extends State<TeacherEnterDataScreen> {
   // Use the provided TeacherProvider from the widget tree
   final _statusOptions = ['Active', 'Left'];
   String? _selectedStatus;
+  final AuthService _auth = AuthService();
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -46,6 +49,12 @@ class _TeacherEnterDataScreenState extends State<TeacherEnterDataScreen> {
       _leavingDate =
           t.leavingDate.isNotEmpty ? DateTime.tryParse(t.leavingDate) : null;
     }
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
+    setState(() { _isAdmin = _auth.isAdmin; });
   }
 
   @override
@@ -420,7 +429,7 @@ class _TeacherEnterDataScreenState extends State<TeacherEnterDataScreen> {
                                 width: double.infinity,
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _addTeacher,
+                                  onPressed: (!_isAdmin || _isLoading) ? null : _addTeacher,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Color(0xFF1976D2),
                                     foregroundColor: Colors.white,
@@ -450,6 +459,38 @@ class _TeacherEnterDataScreenState extends State<TeacherEnterDataScreen> {
                                         ),
                                 ),
                               ),
+
+                                      if (!_isAdmin) ...[
+                                        SizedBox(height: 12),
+                                        Text('You have read-only access. Request admin to add teachers.', style: TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                                        SizedBox(height: 8),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              final reason = await showDialog<String?>(
+                                                context: context,
+                                                builder: (ctx) {
+                                                  final controller = TextEditingController();
+                                                  return AlertDialog(
+                                                    title: Text('Request Admin Access'),
+                                                    content: TextField(controller: controller, decoration: InputDecoration(hintText: 'Reason')),
+                                                    actions: [
+                                                      TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
+                                                      TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text('Send')),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                              if (reason != null && reason.isNotEmpty) {
+                                                final ok = await _auth.requestAdminAccess(reason);
+                                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Request submitted' : 'Request failed')));
+                                              }
+                                            },
+                                            child: Text('Request Admin Access'),
+                                          ),
+                                        ),
+                                      ],
                               SizedBox(height: 20),
                             ],
                           ),
