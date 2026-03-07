@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'auth_service.dart';
 import '../models/chat_message.dart';
 
 /// Conversational AI Chat Service
@@ -95,11 +96,19 @@ class AIChatService {
   /// Query backend AI for financial queries
   Future<String> _queryBackendAI(String message, bool isUrdu) async {
     try {
+      // Ensure we include auth headers saved by AuthService
+      final auth = AuthService();
+      await auth.initialize();
+      final headers = {
+        'Content-Type': 'application/json',
+        ...auth.getAuthHeaders(),
+      };
+
       final response = await http.post(
         Uri.parse(_backendUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: json.encode({'message': message}),
-      ).timeout(Duration(seconds: 10));
+      ).timeout(Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -112,10 +121,16 @@ class AIChatService {
               ? 'معذرت، میں آپ کی درخواست کو پروسیس نہیں کر سکا۔'
               : 'Sorry, I couldn\'t process your request.';
         }
-      } else {
+      } else if (response.statusCode == 401) {
+        debugPrint('AI backend responded 401: ${response.body}');
         return isUrdu
-            ? 'سرور سے رابطہ میں خرابی۔ براہ کرم دوبارہ کوشش کریں۔'
-            : 'Server connection error. Please try again.';
+        ? 'آپ لاگ ان نہیں ہیں یا سیشن ختم ہو گیا ہے۔ براہ کرم دوبارہ لاگ ان کریں۔'
+        : 'You are not authenticated or session expired. Please log in again.';
+      } else {
+        debugPrint('AI backend error ${response.statusCode}: ${response.body}');
+        return isUrdu
+        ? 'سرور سے رابطہ میں خرابی۔ براہ کرم دوبارہ کوشش کریں۔'
+        : 'Server connection error. Please try again.';
       }
     } catch (e) {
       debugPrint('Backend AI error: $e');

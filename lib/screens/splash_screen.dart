@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,13 +24,37 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _controller.forward();
+    // Check authentication and navigate after splash delay
+    _checkAuthAndNavigate();
+  }
 
-    Timer(Duration(seconds: 5), () {
+  Future<void> _checkAuthAndNavigate() async {
+    final authService = AuthService();
+    // Keep splash visible for a minimum duration
+    await Future.delayed(Duration(seconds: 2));
+
+    try {
+      await authService.initialize();
+    } catch (_) {
+      // ignore initialization errors and treat as unauthenticated
+    }
+
+    // Small additional delay so animation shows a bit
+    await Future.delayed(Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    if (authService.isAuthenticated) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomeScreen()), // Skip login - go directly to home
+        MaterialPageRoute(builder: (context) => HomeScreen()),
       );
-    });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    }
   }
 
   @override

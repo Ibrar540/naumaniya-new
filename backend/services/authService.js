@@ -144,11 +144,31 @@ class AuthService {
     try {
       const adminName = process.env.DEFAULT_ADMIN_NAME || 'admin';
       const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
-
-      const r = await db.query('SELECT id FROM users WHERE name = $1', [adminName]);
+      const r = await db.query('SELECT id, password_hash FROM users WHERE name = $1', [adminName]);
       if (r.rows.length > 0) {
-        console.log(`✅ Default admin user '${adminName}' already exists`);
-        return;
+        console.log(`ℹ️ Default admin user '${adminName}' already exists`);
+        const existing = r.rows[0];
+        // Check if existing hash matches the provided default password
+        try {
+          const matches = await bcrypt.compare(adminPassword, existing.password_hash);
+          if (matches) {
+            console.log(`✅ Existing admin password matches DEFAULT_ADMIN_PASSWORD`);
+            return;
+          } else {
+            // If an explicit reset flag is provided, overwrite the password
+            if (process.env.DEFAULT_ADMIN_RESET === 'true') {
+              const newHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+              await db.query('UPDATE users SET password_hash = $1, role = $2, is_active = true WHERE id = $3', [newHash, 'admin', existing.id]);
+              console.log(`🔧 Default admin '${adminName}' password updated due to DEFAULT_ADMIN_RESET=true`);
+              return;
+            }
+            console.warn(`⚠️ Admin '${adminName}' exists but DEFAULT_ADMIN_PASSWORD does not match. To reset set DEFAULT_ADMIN_RESET=true env var.`);
+            return;
+          }
+        } catch (cmpErr) {
+          console.error('❌ Error comparing admin passwords:', cmpErr.message || cmpErr);
+          return;
+        }
       }
 
       const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
