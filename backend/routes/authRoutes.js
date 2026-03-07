@@ -183,6 +183,33 @@ router.get('/admin/users', authenticate, requireActive, requireAdmin, async (req
 });
 
 /**
+ * PUT /auth/profile
+ * Update current user's profile (name/password)
+ */
+router.put('/profile', authenticate, requireActive, async (req, res) => {
+  try {
+    const { name, password } = req.body;
+    const result = await authService.updateProfile(req.user.id, name, password);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /auth/admin/history
+ * Get audit history for last 30 days (admin only)
+ */
+router.get('/admin/history', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const rows = await authService.getAuditHistory(30);
+    res.json({ success: true, history: rows });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * PUT /auth/admin/user-status
  * Update user active status (admin only)
  */
@@ -190,6 +217,8 @@ router.put('/admin/user-status', authenticate, requireActive, requireAdmin, asyn
   try {
     const { userId, isActive } = req.body;
     const result = await authService.updateUserStatus(userId, isActive);
+    // Log who performed the action
+    try { await authService.logAudit(req.user.id, 'update_user_status', userId, `Set is_active=${isActive}`); } catch (e) { console.error('Audit log failed:', e); }
     res.json(result);
   } catch (error) {
     res.status(400).json({
@@ -207,6 +236,7 @@ router.delete('/admin/user/:userId', authenticate, requireActive, requireAdmin, 
   try {
     const { userId } = req.params;
     const result = await authService.deleteUser(userId);
+    try { await authService.logAudit(req.user.id, 'delete_user', userId, `Deleted user id=${userId}`); } catch (e) { console.error('Audit log failed:', e); }
     res.json(result);
   } catch (error) {
     res.status(400).json({

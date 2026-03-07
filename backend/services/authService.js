@@ -400,13 +400,16 @@ class AuthService {
           [requestId]
         );
 
-        if (request.rows.length > 0) {
-          // Promote user to admin
-          await db.query(
-            'UPDATE users SET role = $1 WHERE id = $2',
-            ['admin', request.rows[0].user_id]
-          );
-        }
+          if (request.rows.length > 0) {
+            // Promote user to admin
+            await db.query(
+              'UPDATE users SET role = $1 WHERE id = $2',
+              ['admin', request.rows[0].user_id]
+            );
+
+            // Log audit
+            await this.logAudit(adminId, 'approve_admin_request', request.rows[0].user_id, `Approved admin request id=${requestId}`);
+          }
       }
 
       return { success: true, message: `Request ${status}` };
@@ -444,6 +447,13 @@ class AuthService {
         [isActive, userId]
       );
 
+      // Log audit - actor unknown here; caller should log with proper admin id when used via route
+      try {
+        await this.logAudit(null, 'update_user_status', userId, `Set is_active=${isActive}`);
+      } catch (e) {
+        console.error('Audit log failed:', e);
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Update user status error:', error);
@@ -457,9 +467,101 @@ class AuthService {
   async deleteUser(userId) {
     try {
       await db.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      try {
+        await this.logAudit(null, 'delete_user', userId, `Deleted user id=${userId}`);
+      } catch (e) {
+        console.error('Audit log failed:', e);
+      }
       return { success: true };
     } catch (error) {
       console.error('Delete user error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update profile (name/password) for current user
+   */
+  async updateProfile(userId, newName, newPassword) {
+    try {
+      if (!userId) throw new Error('User id is required');
+
+      if (newPassword && newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+
+      if (newPassword) {
+        const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+        await db.query('UPDATE users SET name = $1, password_hash = $2 WHERE id = $3', [newName, hash, userId]);
+      } else {
+        await db.query('UPDATE users SET name = $1 WHERE id = $2', [newName, userId]);
+      }
+
+      // Log profile update (actor is the user themselves)
+      try {
+        await this.logAudit(userId, 'update_profile', userId, `Updated own profile`);
+      } catch (e) {
+        console.error('Audit log failed:', e);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get audit history for last N days (default 30)
+   */
+  async getAuditHistory(days = 30) {
+    try {
+      const result = await db.query(
+        `SELECT id, actor_id, actor_name, action, target_user_id, target_user_name, details, created_at
+         FROM audit_logs
+         WHERE created_at >= (CURRENT_TIMESTAMP - INTERVAL '${days} days')
+         ORDER BY created_at DESC`,
+        []
+      );
+
+      return result.rows;
+    } catch (error) {
+      console.error('Get audit history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Insert an audit log entry. actorId may be null when caller doesn't supply it.
+   */
+  async logAudit(actorId, action, targetUserId = null, details = null) {
+    try {
+      let actorName = null;
+      if (actorId) {
+        try {
+          const r = await db.query('SELECT name FROM users WHERE id = $1', [actorId]);
+          if (r.rows.length > 0) actorName = r.rows[0].name;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      let targetUserName = null;
+      if (targetUserId) {
+        try {
+          const t = await db.query('SELECT name FROM users WHERE id = $1', [targetUserId]);
+          if (t.rows.length > 0) targetUserName = t.rows[0].name;
+        } catch (e) {}
+      }
+
+      await db.query(
+        `INSERT INTO audit_logs (actor_id, actor_name, action, target_user_id, target_user_name, details)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [actorId, actorName, action, targetUserId, targetUserName, details]
+      );
+    } catch (error) {
+      console.error('Failed to write audit log:', error);
       throw error;
     }
   }

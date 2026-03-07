@@ -235,6 +235,56 @@ class AuthService {
     }
   }
 
+  /// Update current user's profile (name/password)
+  Future<bool> updateProfile(String name, String? password) async {
+    try {
+      if (_token == null) return false;
+
+      final body = {'name': name};
+      if (password != null && password.isNotEmpty) body['password'] = password;
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/auth/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Update profile error: $e');
+      return false;
+    }
+  }
+
+  /// Get admin audit history (last 30 days)
+  Future<List<Map<String, dynamic>>> getHistory() async {
+    try {
+      if (_token == null || !isAdmin) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/admin/history'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (data['success'] == true && data['history'] != null) {
+        return List<Map<String, dynamic>>.from(data['history']);
+      }
+
+      return [];
+    } catch (e) {
+      debugPrint('❌ Get history error: $e');
+      return [];
+    }
+  }
+
   /// Review admin request (admin only)
   Future<bool> reviewAdminRequest(int requestId, bool approve) async {
     try {

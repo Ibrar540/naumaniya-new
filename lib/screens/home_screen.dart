@@ -4,6 +4,7 @@ import '../providers/language_provider.dart';
 import 'ai_chat_screen.dart';
 import 'madrasa_budget_screen.dart';
 import 'students_screen.dart';
+import 'settings_screen.dart';
 import 'teachers_screen.dart';
 import 'budget_enter_data_screen.dart';
 import 'class_management_screen.dart';
@@ -223,6 +224,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           tooltip: languageProvider.getText('switch_language'),
                         padding: EdgeInsets.all(8),
                         constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                        ),
+                        // Settings icon below language switch
+                        IconButton(
+                          icon: Icon(Icons.settings, color: Colors.white),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen()));
+                          },
+                          tooltip: languageProvider.getText('settings'),
+                          padding: EdgeInsets.all(8),
+                          constraints: BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
                       ],
                     ),

@@ -13,9 +13,36 @@ const queryBuilder = require('./services/queryBuilder');
 const responseFormatter = require('./services/responseFormatter');
 const authRoutes = require('./routes/authRoutes');
 const { authenticate, requireActive } = require('./middleware/authMiddleware');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Express app
 const app = express();
+
+// Run SQL migrations from database/migrations (best-effort, idempotent)
+(async function runMigrations() {
+  try {
+    const migrationsDir = path.resolve(__dirname, '../database/migrations');
+    if (fs.existsSync(migrationsDir)) {
+      const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+      for (const file of files) {
+        const p = path.join(migrationsDir, file);
+        try {
+          const sql = fs.readFileSync(p, 'utf8');
+          console.log(`🔁 Applying migration ${file}`);
+          await db.query(sql, []);
+          console.log(`✅ Applied migration ${file}`);
+        } catch (e) {
+          console.error(`❌ Migration ${file} failed:`, e.message || e);
+        }
+      }
+    } else {
+      console.log('No migrations directory found at', migrationsDir);
+    }
+  } catch (err) {
+    console.error('Migration runner error:', err.message || err);
+  }
+})();
 
 // Middleware
 app.use(helmet());
