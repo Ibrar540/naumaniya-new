@@ -37,13 +37,11 @@ class AIChatService {
       if (_isFinancialQuery(userMessage)) {
         // Use backend AI for financial queries
         final responseContent = await _queryBackendAI(userMessage, isUrdu);
-        final suggestions = _generateFinancialSuggestions(isUrdu);
-
         final assistantMessage = ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: MessageRole.assistant,
           content: responseContent,
-          suggestions: suggestions,
+          suggestions: null, // suggestions are provided dynamically via getSuggestions
         );
 
         _conversationHistory.add(assistantMessage);
@@ -51,13 +49,11 @@ class AIChatService {
       } else {
         // Use local response for non-financial queries
         final responseContent = _generateResponse(userMessage, isUrdu);
-        final suggestions = _generateSuggestions(userMessage, isUrdu);
-
         final assistantMessage = ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: MessageRole.assistant,
           content: responseContent,
-          suggestions: suggestions,
+          suggestions: null,
         );
 
         _conversationHistory.add(assistantMessage);

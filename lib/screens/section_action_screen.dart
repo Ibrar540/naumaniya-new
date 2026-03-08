@@ -7,6 +7,7 @@ import 'section_data_screen.dart';
 import 'budget_enter_data_screen.dart';
 import 'section_options_detail_screen.dart';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class SectionActionScreen extends StatefulWidget {
   final String type; // 'income' or 'expenditure'
@@ -30,12 +31,25 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
   bool _loadingSections = false;
   final _sectionNameController = TextEditingController();
   final _searchController = TextEditingController();
+  final AuthService _auth = AuthService();
+  bool _isAdmin = false;
 
   @override
   void dispose() {
     _sectionNameController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
+    if (mounted) setState(() => _isAdmin = _auth.isAdmin);
   }
 
   void _filterSections(String query) {
@@ -202,11 +216,11 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
+                onPressed: _isAdmin ? () {
                   setState(() {
                     _selectedAction = 'create';
                   });
-                },
+                } : null,
                 child: Text(
                   isUrdu ? 'سیکشن بنائیں' : 'Create Section',
                   style: TextStyle(fontSize: 18),
@@ -392,32 +406,33 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
                               style: TextStyle(fontSize: 16),
                             ),
                           ),
-                          PopupMenuButton<String>(
-                            icon: Icon(Icons.more_vert),
-                            onSelected: (value) => _handleMenuAction(value, section),
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, color: Colors.orange),
-                                    SizedBox(width: 8),
-                                    Text(isUrdu ? 'سیکشن میں ترمیم کریں' : 'Edit Section'),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.delete, color: Colors.red),
-                                    SizedBox(width: 8),
-                                    Text(isUrdu ? 'سیکشن حذف کریں' : 'Delete Section'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                                if (_isAdmin)
+                                  PopupMenuButton<String>(
+                                    icon: Icon(Icons.more_vert),
+                                    onSelected: (value) => _handleMenuAction(value, section),
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit, color: Colors.orange),
+                                            SizedBox(width: 8),
+                                            Text(isUrdu ? 'سیکشن میں ترمیم کریں' : 'Edit Section'),
+                                          ],
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete, color: Colors.red),
+                                            SizedBox(width: 8),
+                                            Text(isUrdu ? 'سیکشن حذف کریں' : 'Delete Section'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                         ] else ...[
                           PopupMenuButton<String>(
                             icon: Icon(Icons.more_vert),

@@ -6,219 +6,166 @@
 const db = require('../config/db');
 
 class AIEngine {
-  constructor() {
-    // Keywords for module detection
-    this.moduleKeywords = {
-      masjid: ['masjid', 'mosque', 'مسجد'],
-      madrasa: ['madrasa', 'madrasah', 'مدرسہ', 'مدرسے']
-    };
+	constructor() {
+		// Keywords for module detection
+		this.moduleKeywords = {
+			masjid: ['masjid', 'mosque', 'مسجد'],
+			madrasa: ['madrasa', 'madrasah', 'مدرسہ', 'مدرسے']
+		};
 
-    // Keywords for type detection
-    this.typeKeywords = {
-      income: ['income', 'revenue', 'earning', 'آمدنی', 'آمدن', 'وصولی'],
-      expenditure: ['expenditure', 'expense', 'spending', 'cost', 'خرچ', 'اخراجات', 'خرچہ']
-    };
+		// Keywords for type detection
+		this.typeKeywords = {
+			income: ['income', 'revenue', 'earning', 'آمدنی', 'آمدن', 'وصولی'],
+			expenditure: ['expenditure', 'expense', 'spending', 'cost', 'خرچ', 'اخراجات', 'خرچہ']
+		};
 
-    // Keywords for intent detection
-    this.intentKeywords = {
-      total: ['total', 'sum', 'کل', 'مجموعی'],
-      net_balance: ['net', 'balance', 'profit', 'loss', 'خالص', 'بیلنس'],
-      compare: ['compare', 'comparison', 'vs', 'versus', 'موازنہ', 'تقابل'],
-      summary: ['summary', 'report', 'overview', 'خلاصہ', 'رپورٹ'],
-      breakdown: ['breakdown', 'section', 'wise', 'تفصیل', 'سیکشن']
-    };
+		// Keywords for intent detection
+		this.intentKeywords = {
+			total: ['total', 'sum', 'کل', 'مجموعی'],
+			net_balance: ['net', 'balance', 'profit', 'loss', 'خالص', 'بیلنس'],
+			compare: ['compare', 'comparison', 'vs', 'versus', 'موازنہ', 'تقابل'],
+			summary: ['summary', 'report', 'overview', 'خلاصہ', 'رپورٹ'],
+			breakdown: ['breakdown', 'section', 'wise', 'تفصیل', 'سیکشن']
+		};
 
-    // Month names mapping
-    this.monthNames = {
-      'january': 1, 'jan': 1, 'جنوری': 1,
-      'february': 2, 'feb': 2, 'فروری': 2,
-      'march': 3, 'mar': 3, 'مارچ': 3,
-      'april': 4, 'apr': 4, 'اپریل': 4,
-      'may': 5, 'مئی': 5,
-      'june': 6, 'jun': 6, 'جون': 6,
-      'july': 7, 'jul': 7, 'جولائی': 7,
-      'august': 8, 'aug': 8, 'اگست': 8,
-      'september': 9, 'sep': 9, 'ستمبر': 9,
-      'october': 10, 'oct': 10, 'اکتوبر': 10,
-      'november': 11, 'nov': 11, 'نومبر': 11,
-      'december': 12, 'dec': 12, 'دسمبر': 12
-    };
-  }
+		// Month names mapping
+		this.monthNames = {
+			'january': 1, 'jan': 1, 'جنوری': 1,
+			'february': 2, 'feb': 2, 'فروری': 2,
+			'march': 3, 'mar': 3, 'مارچ': 3,
+			'april': 4, 'apr': 4, 'اپریل': 4,
+			'may': 5, 'مئی': 5,
+			'june': 6, 'jun': 6, 'جون': 6,
+			'july': 7, 'jul': 7, 'جولائی': 7,
+			'august': 8, 'aug': 8, 'اگست': 8,
+			'september': 9, 'sep': 9, 'ستمبر': 9,
+			'october': 10, 'oct': 10, 'اکتوبر': 10,
+			'november': 11, 'nov': 11, 'نومبر': 11,
+			'december': 12, 'dec': 12, 'دسمبر': 12
+		};
+	}
 
-  /**
-   * Main parsing function
-   * @param {string} message - User's natural language query
-   * @returns {Object} Parsed intent object
-   */
-  async parse(message) {
-    const lowerMessage = message.toLowerCase();
-    
-    const intent = {
-      module: this.detectModule(lowerMessage),
-      type: this.detectType(lowerMessage),
-      section: await this.detectSection(lowerMessage),
-      year: this.detectYear(lowerMessage),
-      month: this.detectMonth(lowerMessage),
-      intent: this.detectIntent(lowerMessage),
-      originalMessage: message
-    };
+	_escapeRegex(s) {
+		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	}
 
-    return intent;
-  }
+	async parse(message) {
+		const lowerMessage = message.toLowerCase();
 
-  /**
-   * Detect module (masjid or madrasa)
-   */
-  detectModule(message) {
-    for (const [module, keywords] of Object.entries(this.moduleKeywords)) {
-      if (keywords.some(keyword => message.includes(keyword))) {
-        return module;
-      }
-    }
-    return 'masjid'; // Default to masjid
-  }
+		const intent = {
+			module: this.detectModule(lowerMessage),
+			type: this.detectType(lowerMessage),
+			section: await this.detectSection(lowerMessage),
+			year: this.detectYear(lowerMessage),
+			month: this.detectMonth(lowerMessage),
+			intent: this.detectIntent(lowerMessage),
+			originalMessage: message
+		};
 
-  /**
-   * Detect type (income or expenditure)
-   */
-  detectType(message) {
-    // Check expenditure first (more specific)
-    if (this.typeKeywords.expenditure.some(keyword => message.includes(keyword))) {
-      return 'expenditure';
-    }
-    
-    if (this.typeKeywords.income.some(keyword => message.includes(keyword))) {
-      return 'income';
-    }
+		return intent;
+	}
 
-    // If net balance or summary, return both
-    if (message.includes('net') || message.includes('balance') || 
-        message.includes('summary') || message.includes('خالص') || 
-        message.includes('خلاصہ')) {
-      return 'both';
-    }
+	detectModule(message) {
+		for (const [mod, keywords] of Object.entries(this.moduleKeywords)) {
+			for (const keyword of keywords) {
+				const rx = new RegExp('\\b' + this._escapeRegex(keyword) + '\\b', 'i');
+				if (rx.test(message)) return mod;
+			}
+		}
+		return 'masjid';
+	}
 
-    return 'income'; // Default to income
-  }
+	detectType(message) {
+		for (const k of this.typeKeywords.expenditure) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'expenditure';
+		}
+		for (const k of this.typeKeywords.income) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'income';
+		}
+		if (/\b(net|balance|summary|خالص|خلاصہ)\b/i.test(message)) return 'both';
+		return 'income';
+	}
 
-  /**
-   * Detect section name from database
-   * Enhanced to match section names more intelligently
-   */
-  async detectSection(message) {
-    try {
-      // Get all unique section names from sections table
-      const query = `SELECT DISTINCT name FROM sections ORDER BY name`;
-      
-      const result = await db.query(query, []);
-      
-      if (result.rows.length === 0) {
-        return null;
-      }
+	async detectSection(message) {
+		try {
+			const query = `SELECT DISTINCT name FROM sections ORDER BY name`;
+			const result = await db.query(query, []);
+			if (result.rows.length === 0) return null;
 
-      const sections = result.rows.map(row => ({
-        original: row.name,
-        lower: row.name.toLowerCase()
-      }));
+			const sections = result.rows.map(r => ({ original: r.name, lower: r.name.toLowerCase() }));
 
-      // First pass: exact match (case-insensitive)
-      for (const section of sections) {
-        if (message.includes(section.lower)) {
-          console.log(`✅ Section detected (exact match): "${section.original}"`);
-          return section.lower;
-        }
-      }
+			for (const section of sections) {
+				const rx = new RegExp('\\b' + this._escapeRegex(section.lower) + '\\b', 'i');
+				if (rx.test(message)) return section.lower;
+			}
 
-      // Second pass: word boundary match
-      const messageWords = message.split(/\s+/);
-      for (const section of sections) {
-        for (const word of messageWords) {
-          if (word === section.lower) {
-            console.log(`✅ Section detected (word match): "${section.original}"`);
-            return section.lower;
-          }
-        }
-      }
+			const messageWords = message.split(/\s+/).map(w => w.replace(/[^\w\u0600-\u06FF]/g, ''));
+			for (const section of sections) {
+				for (const word of messageWords) {
+					if (!word) continue;
+					if (word === section.lower || section.lower.includes(word)) return section.lower;
+				}
+			}
+			return null;
+		} catch (err) {
+			console.error('❌ Error detecting section:', err);
+			return null;
+		}
+	}
 
-      return null; // No specific section mentioned
-    } catch (error) {
-      console.error('❌ Error detecting section:', error);
-      return null;
-    }
-  }
+	detectYear(message) {
+		const yearMatch = message.match(/\b(20\d{2})\b/);
+		if (yearMatch) return parseInt(yearMatch[1]);
+		const currentYear = new Date().getFullYear();
+		if (/\blast year\b|\bپچھلے سال\b|\bگزشتہ سال\b/i.test(message)) return currentYear - 1;
+		if (/\bthis year\b|\bاس سال\b|\bموجودہ سال\b/i.test(message)) return currentYear;
+		return null;
+	}
 
-  /**
-   * Detect year from message
-   */
-  detectYear(message) {
-    // Match 4-digit year (20xx format)
-    const yearMatch = message.match(/\b(20\d{2})\b/);
-    if (yearMatch) {
-      return parseInt(yearMatch[1]);
-    }
+	detectMonth(message) {
+		for (const [name, num] of Object.entries(this.monthNames)) {
+			const rx = new RegExp('\\b' + this._escapeRegex(name) + '\\b', 'i');
+			if (rx.test(message)) return num;
+		}
+		if (/\blast month\b|\bپچھلے مہینے\b/i.test(message)) {
+			const lastMonth = new Date().getMonth();
+			return lastMonth === 0 ? 12 : lastMonth;
+		}
+		return null;
+	}
 
-    // Handle "last year", "this year"
-    const currentYear = new Date().getFullYear();
-    
-    if (message.includes('last year') || message.includes('پچھلے سال') || message.includes('گزشتہ سال')) {
-      return currentYear - 1;
-    }
-    
-    if (message.includes('this year') || message.includes('اس سال') || message.includes('موجودہ سال')) {
-      return currentYear;
-    }
-
-    // Don't default to current year - return null if no year specified
-    return null;
-  }
-
-  /**
-   * Detect month from message
-   */
-  detectMonth(message) {
-    for (const [monthName, monthNum] of Object.entries(this.monthNames)) {
-      if (message.includes(monthName)) {
-        return monthNum;
-      }
-    }
-
-    // Handle "last month"
-    if (message.includes('last month') || message.includes('پچھلے مہینے')) {
-      const lastMonth = new Date().getMonth(); // 0-indexed
-      return lastMonth === 0 ? 12 : lastMonth;
-    }
-
-    // Don't default to current month - return null if no month specified
-    return null;
-  }
-
-  /**
-   * Detect intent type
-   */
-  detectIntent(message) {
-    // Check in priority order
-    if (this.intentKeywords.compare.some(keyword => message.includes(keyword))) {
-      return 'compare';
-    }
-    
-    if (this.intentKeywords.net_balance.some(keyword => message.includes(keyword))) {
-      return 'net_balance';
-    }
-    
-    if (this.intentKeywords.summary.some(keyword => message.includes(keyword))) {
-      return 'summary';
-    }
-    
-    if (this.intentKeywords.breakdown.some(keyword => message.includes(keyword))) {
-      return 'breakdown';
-    }
-    
-    if (this.intentKeywords.total.some(keyword => message.includes(keyword))) {
-      return 'total';
-    }
-
-    return 'total'; // Default intent
-  }
+	detectIntent(message) {
+		for (const k of this.intentKeywords.compare) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'compare';
+		}
+		for (const k of this.intentKeywords.net_balance) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'net_balance';
+		}
+		for (const k of this.intentKeywords.summary) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'summary';
+		}
+		for (const k of this.intentKeywords.breakdown) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'breakdown';
+		}
+		for (const k of this.intentKeywords.total) {
+			const rx = new RegExp('\\b' + this._escapeRegex(k) + '\\b', 'i');
+			if (rx.test(message)) return 'total';
+		}
+		return 'total';
+	}
 }
 
 module.exports = new AIEngine();
+/**
+ * AI Engine - Rule-based NLP for Intent Detection
+ * Detects module, type, section, date, and intent from natural language queries
+ */
+
+*** End Patch
+

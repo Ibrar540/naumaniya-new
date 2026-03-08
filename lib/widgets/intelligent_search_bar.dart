@@ -125,7 +125,24 @@ class _IntelligentSearchBarState extends State<IntelligentSearchBar> {
   }
 
   void _selectSuggestion(String suggestion, int index) {
-    _controller.text = suggestion;
+    final current = _controller.text.trim();
+    String newText;
+    if (current.isEmpty) {
+      newText = suggestion;
+    } else {
+      final curLower = current.toLowerCase();
+      final sugLower = suggestion.toLowerCase();
+      if (sugLower.contains(curLower) || sugLower.startsWith(curLower)) {
+        // suggestion already includes what user typed — replace with suggestion
+        newText = suggestion;
+      } else {
+        // keep user's entered words and append suggestion
+        // If suggestion already contains the current text anywhere we already handled that above,
+        // so here simply append the suggestion after the current input.
+        newText = '$current $suggestion'.trim();
+      }
+    }
+    _controller.text = newText;
     setState(() {
       _showSuggestions = false;
     });

@@ -281,112 +281,90 @@ app.post('/ai-suggestions', async (req, res) => {
       });
     }
 
-    const lowerInput = input.toLowerCase();
-    const suggestions = [];
+    const lowerInput = input.toLowerCase().trim();
 
-    // Get available sections
-    const sectionsQuery = `SELECT DISTINCT name FROM sections LIMIT 10`;
-    const sectionsResult = await db.query(sectionsQuery, []);
-    const sections = sectionsResult.rows.map(row => row.name);
+    // Persist input into suggestions_history (upsert: insert or increment occurrences)
+    try {
+      const upsertQuery = `
+        INSERT INTO suggestions_history (input_text, normalized, occurrences)
+        VALUES ($1, $2, 1)
+        ON CONFLICT (normalized)
+        DO UPDATE SET occurrences = suggestions_history.occurrences + 1, updated_at = now()
+      `;
+      await db.query(upsertQuery, [input, lowerInput]);
+    } catch (e) {
+      // ignore errors writing suggestions history
+      console.error('❌ Failed to persist suggestion:', e.message || e);
+    }
 
-    // Get available years
-    const yearsQuery = `
-      SELECT DISTINCT EXTRACT(YEAR FROM date) as year 
-      FROM (
-        SELECT date FROM masjid_income
-        UNION SELECT date FROM masjid_expenditure
-        UNION SELECT date FROM madrasa_income
-        UNION SELECT date FROM madrasa_expenditure
-      ) AS all_dates
-      WHERE date IS NOT NULL
-      ORDER BY year DESC
-      LIMIT 5
-    `;
-    const yearsResult = await db.query(yearsQuery, []);
-    const years = yearsResult.rows.map(row => parseInt(row.year));
+    // Query historical suggestions that start with the input or contain it as token
+    try {
+      const histQuery = `
+        SELECT input_text FROM suggestions_history
+        WHERE normalized LIKE $1 || '%' OR normalized LIKE '%' || $1 || '%' 
+        ORDER BY occurrences DESC, updated_at DESC
+        LIMIT 100
+      `;
+      const histRes = await db.query(histQuery, [lowerInput]);
+      const historySuggestions = histRes.rows.map(r => r.input_text);
 
-    // Generate suggestions based on input
-    const currentYear = new Date().getFullYear();
-    const lastYear = currentYear - 1;
+      // Additionally, generate template suggestions using sections and years (only when helpful)
+      const templates = [];
+      const currentYear = new Date().getFullYear();
 
-    // Total queries
-    if (lowerInput.includes('total') || lowerInput.includes('کل')) {
-      suggestions.push(`Total income of masjid in ${currentYear}`);
-      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
-      if (sections.length > 0) {
-        suggestions.push(`Total income from ${sections[0]} in ${currentYear}`);
+      // Include section names if input mentions them partially
+      const sectionsQuery = `SELECT DISTINCT name FROM sections`;
+      const sectionsResult = await db.query(sectionsQuery, []);
+      const sections = sectionsResult.rows.map(r => r.name);
+
+      // If user typed a short token, return suggestions that start with that token followed by common continuations
+      if (lowerInput.length >= 1) {
+        // Detect if input contains Urdu/Arabic characters
+        const hasUrdu = /[\u0600-\u06FF]/.test(input);
+
+        // Add generic templates matching common query types (English or Urdu)
+        if (/\b(total|sum|کل)\b/.test(lowerInput) || lowerInput.length < 6) {
+          if (hasUrdu) {
+            templates.push(`مسجد کی کل آمدنی ${currentYear}`);
+            templates.push(`مسجد کا مالیاتی خلاصہ ${currentYear}`);
+          } else {
+            templates.push(`Total income of masjid in ${currentYear}`);
+            templates.push(`Financial summary of masjid ${currentYear}`);
+          }
+        }
+
+        // If a section is referenced, add section templates (support Urdu & English)
+        for (const s of sections) {
+          const sNorm = String(s).toLowerCase().trim();
+          // Skip trivial single-letter section names unless explicitly referenced
+          if (sNorm.length <= 1) {
+            // match explicit patterns like "section A", "شاخ A", "قسم A"
+            const explicitRegex = new RegExp('\\b(?:section|shak|شاخ|قسم)\\b\\s*[:]?\\s*' + sNorm + '\\b', 'i');
+            if (!explicitRegex.test(input)) continue;
+          } else {
+            // require a stronger match: either the input contains the section name as a whole word,
+            // or the section name contains the input token
+            if (!(input.toLowerCase().includes(sNorm) || sNorm.includes(lowerInput))) continue;
+          }
+
+          if (hasUrdu) {
+            templates.push(`متعلقہ شاخ ${s} کی آمدنی ${currentYear}`);
+            templates.push(`${s} کے اخراجات ${currentYear}`);
+          } else {
+            templates.push(`Total income from ${s} in ${currentYear}`);
+            templates.push(`${s} expenditure in ${currentYear}`);
+          }
+        }
       }
+
+      // Merge history + templates, keep unique and reasonably large (limit 100)
+      const merged = [...new Set([...historySuggestions, ...templates])].slice(0, 100);
+
+      return res.json({ success: true, suggestions: merged });
+    } catch (e) {
+      console.error('❌ Error generating suggestions:', e.message || e);
+      return res.status(500).json({ success: false, error: 'Failed to generate suggestions' });
     }
-
-    // Summary queries
-    if (lowerInput.includes('summary') || lowerInput.includes('خلاصہ')) {
-      suggestions.push(`Financial summary of masjid ${currentYear}`);
-      suggestions.push(`Financial summary of madrasa ${currentYear}`);
-    }
-
-    // Compare queries
-    if (lowerInput.includes('compare') || lowerInput.includes('موازنہ')) {
-      suggestions.push(`Compare masjid income ${lastYear} and ${currentYear}`);
-      suggestions.push(`Compare madrasa expenditure ${lastYear} and ${currentYear}`);
-    }
-
-    // Net balance queries
-    if (lowerInput.includes('balance') || lowerInput.includes('بیلنس')) {
-      suggestions.push(`Net balance of masjid in ${currentYear}`);
-      suggestions.push(`Net balance of madrasa in ${currentYear}`);
-    }
-
-    // Breakdown queries
-    if (lowerInput.includes('breakdown') || lowerInput.includes('تفصیل')) {
-      suggestions.push(`Breakdown of masjid income ${currentYear}`);
-      suggestions.push(`Breakdown of madrasa expenditure ${currentYear}`);
-    }
-
-    // Module-specific suggestions
-    if (lowerInput.includes('masjid') || lowerInput.includes('مسجد')) {
-      suggestions.push(`Total income of masjid in ${currentYear}`);
-      suggestions.push(`Total expenditure of masjid in ${currentYear}`);
-      suggestions.push(`Financial summary of masjid ${currentYear}`);
-    }
-
-    if (lowerInput.includes('madrasa') || lowerInput.includes('مدرسہ')) {
-      suggestions.push(`Total income of madrasa in ${currentYear}`);
-      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
-      suggestions.push(`Financial summary of madrasa ${currentYear}`);
-    }
-
-    // Section-specific suggestions
-    for (const section of sections.slice(0, 3)) {
-      if (lowerInput.includes(section.toLowerCase())) {
-        suggestions.push(`Total income from ${section} in ${currentYear}`);
-        suggestions.push(`${section} expenditure in ${currentYear}`);
-      }
-    }
-
-    // Year-specific suggestions
-    for (const year of years.slice(0, 2)) {
-      if (lowerInput.includes(year.toString())) {
-        suggestions.push(`Total income of masjid in ${year}`);
-        suggestions.push(`Financial summary of madrasa ${year}`);
-      }
-    }
-
-    // Default suggestions if no match
-    if (suggestions.length === 0) {
-      suggestions.push(`Total income of masjid in ${currentYear}`);
-      suggestions.push(`Total expenditure of madrasa in ${currentYear}`);
-      suggestions.push(`Financial summary of masjid ${currentYear}`);
-      suggestions.push(`Net balance of masjid in ${currentYear}`);
-      suggestions.push(`Compare income ${lastYear} and ${currentYear}`);
-    }
-
-    // Remove duplicates and limit to 8 suggestions
-    const uniqueSuggestions = [...new Set(suggestions)].slice(0, 8);
-
-    res.json({
-      success: true,
-      suggestions: uniqueSuggestions
-    });
 
   } catch (error) {
     console.error('❌ Error:', error);

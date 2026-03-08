@@ -82,6 +82,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: _savingProfile ? null : _saveProfile,
             child: _savingProfile ? CircularProgressIndicator() : Text(isUrdu ? 'محفوظ کریں' : 'Save Profile'),
           ),
+          SizedBox(height: 12),
+          if (!_isAdmin)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () async {
+                  final reason = await showDialog<String?>(
+                    context: context,
+                    builder: (ctx) {
+                      final controller = TextEditingController();
+                      return AlertDialog(
+                        title: Text(isUrdu ? 'ایڈمن کی درخواست بھیجیں' : 'Request Admin Access'),
+                        content: TextField(
+                          controller: controller,
+                          decoration: InputDecoration(hintText: isUrdu ? 'وجہ لکھیں' : 'Enter reason'),
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(isUrdu ? 'منسوخ' : 'Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(isUrdu ? 'بھیجیں' : 'Send')),
+                        ],
+                      );
+                    },
+                  );
+                  if (reason != null && reason.isNotEmpty) {
+                    final ok = await _auth.requestAdminAccess(reason);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? (isUrdu ? 'درخواست جمع ہو گئی' : 'Request submitted') : (isUrdu ? 'درخواست ناکام' : 'Request failed'))));
+                  }
+                },
+                child: Text(isUrdu ? 'ایڈمن کی درخواست بھیجیں' : 'Request Admin Access'),
+              ),
+            ),
         ],
       ),
     );

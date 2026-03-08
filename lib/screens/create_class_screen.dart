@@ -5,6 +5,7 @@ import '../providers/language_provider.dart';
 import '../services/database_service.dart';
 import '../models/class_model.dart';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class CreateClassScreen extends StatefulWidget {
   final ClassModel? classToEdit;
@@ -20,12 +21,35 @@ class _CreateClassScreenState extends State<CreateClassScreen> {
   final _classNameController = TextEditingController();
   // DatabaseService is static, no instance needed
   bool _isLoading = false;
+  final AuthService _auth = AuthService();
+  bool _isAdmin = false;
 
   @override
   void initState() {
     super.initState();
+    _initAuth();
     if (widget.classToEdit != null) {
       _classNameController.text = widget.classToEdit!.name;
+    }
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
+    if (mounted) setState(() => _isAdmin = _auth.isAdmin);
+    if (!_isAdmin) {
+      // Non-admins should not be able to open this screen.
+      Future.microtask(() {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Access Denied'),
+            content: Text('Only admins can create or edit classes.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text('OK')),
+            ],
+          ),
+        ).then((_) => Navigator.pop(context));
+      });
     }
   }
 

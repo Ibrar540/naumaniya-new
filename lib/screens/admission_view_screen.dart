@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import 'admission_form_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/language_provider.dart';
 import 'home_screen.dart';
 import '../services/graduation_search_service.dart';
@@ -74,6 +75,7 @@ class _AdmissionViewScreenState extends State<AdmissionViewScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSearchHistory();
     _fetchAdmissions();
     _scrollController.addListener(_onScroll);
   }
@@ -187,9 +189,11 @@ class _AdmissionViewScreenState extends State<AdmissionViewScreen> {
           if (_searchHistory.length > 15) {
             _searchHistory = _searchHistory.take(15).toList();
           }
+          _saveSearchHistory();
         } else {
           _searchHistory.remove(trimmedQuery);
           _searchHistory.insert(0, trimmedQuery);
+          _saveSearchHistory();
         }
       }
       
@@ -198,6 +202,28 @@ class _AdmissionViewScreenState extends State<AdmissionViewScreen> {
       // Debug UI display
       print('UI Debug - _showSuggestions: $_showSuggestions, _smartSuggestions.length: ${_smartSuggestions.length}, _searchQuery: "$_searchQuery"');
     });
+  }
+
+  Future<void> _loadSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('admission_search_history') ?? [];
+      setState(() {
+        _searchHistory = list;
+      });
+    } catch (e) {
+      // ignore load errors
+      print('Failed to load search history: $e');
+    }
+  }
+
+  Future<void> _saveSearchHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('admission_search_history', _searchHistory);
+    } catch (e) {
+      print('Failed to save search history: $e');
+    }
   }
 
   void _generateSmartSuggestions(String query) {

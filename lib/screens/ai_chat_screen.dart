@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import '../providers/language_provider.dart';
 import '../services/ai_chat_service.dart';
+import '../services/auth_service.dart';
 import '../models/chat_message.dart';
 import '../widgets/voice_input_button.dart';
 import '../screens/home_screen.dart';
@@ -21,6 +22,7 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final AIChatService _chatService = AIChatService();
+  final AuthService _auth = AuthService();
   
   List<ChatMessage> _messages = [];
   bool _isTyping = false;
@@ -32,6 +34,11 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     _initializeChat();
+    _initAuth();
+  }
+
+  Future<void> _initAuth() async {
+    await _auth.initialize();
   }
 
   @override
@@ -77,6 +84,14 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
 
   Future<void> _sendMessage(String message) async {
     if (message.trim().isEmpty) return;
+
+    if (!_auth.isAdmin) {
+      final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(languageProvider.isUrdu ? 'صرف ایڈمن سوال پوچھ سکتے ہیں' : 'Only admins may ask the AI assistant')),
+      );
+      return;
+    }
 
     final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     
@@ -325,7 +340,21 @@ class _AIChatScreenState extends State<AIChatScreen> with TickerProviderStateMix
                           style: TextStyle(fontSize: 13),
                         ),
                         onTap: () {
-                          _messageController.text = _dynamicSuggestions[index];
+                          final current = _messageController.text.trim();
+                          final suggestion = _dynamicSuggestions[index];
+                          String newText;
+                          if (current.isEmpty) {
+                            newText = suggestion;
+                          } else {
+                            final curLower = current.toLowerCase();
+                            final sugLower = suggestion.toLowerCase();
+                            if (sugLower.contains(curLower) || sugLower.startsWith(curLower)) {
+                              newText = suggestion;
+                            } else {
+                              newText = '$current $suggestion';
+                            }
+                          }
+                          _messageController.text = newText;
                           setState(() {
                             _showSuggestions = false;
                           });

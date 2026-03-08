@@ -3,7 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
+    // Disabled: Google Services plugin (not used in this project)
+    // id("com.google.gms.google-services")
 }
 
 android {
@@ -45,10 +46,12 @@ flutter {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-storage")
-    implementation("com.google.firebase:firebase-messaging")
+    // Firebase dependencies commented out because this project uses Neon DB instead of Firebase.
+    // If you add Firebase later, restore these lines and provide google-services.json.
+    // implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
+    // implementation("com.google.firebase:firebase-analytics")
+    // implementation("com.google.firebase:firebase-auth")
+    // implementation("com.google.firebase:firebase-firestore")
+    // implementation("com.google.firebase:firebase-storage")
+    // implementation("com.google.firebase:firebase-messaging")
 }
