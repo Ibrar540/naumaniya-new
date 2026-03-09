@@ -162,10 +162,5 @@ class AIEngine {
 }
 
 module.exports = new AIEngine();
-/**
- * AI Engine - Rule-based NLP for Intent Detection
- * Detects module, type, section, date, and intent from natural language queries
- */
 
-*** End Patch
 
