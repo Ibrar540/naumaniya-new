@@ -55,13 +55,25 @@ class AuthService {
         }),
       );
 
-      final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+      // Try to parse JSON safely. If response is not JSON (e.g. server error
+      // returns plain text), handle gracefully and return an error response.
+      try {
+        final decoded = jsonDecode(response.body);
+        final authResponse = AuthResponse.fromJson(decoded);
 
-      if (authResponse.success && authResponse.token != null) {
-        await _saveSession(authResponse.token!, authResponse.user!);
+        if (authResponse.success && authResponse.token != null) {
+          await _saveSession(authResponse.token!, authResponse.user!);
+        }
+
+        return authResponse;
+      } catch (e) {
+        debugPrint('❌ Signup parse error: $e');
+        debugPrint('❌ Signup raw response: ${response.body}');
+        return AuthResponse(
+          success: false,
+          error: response.body.isNotEmpty ? response.body : 'Connection error. Please try again.',
+        );
       }
-
-      return authResponse;
     } catch (e) {
       debugPrint('❌ Signup error: $e');
       return AuthResponse(
@@ -83,13 +95,23 @@ class AuthService {
         }),
       );
 
-      final authResponse = AuthResponse.fromJson(jsonDecode(response.body));
+      try {
+        final decoded = jsonDecode(response.body);
+        final authResponse = AuthResponse.fromJson(decoded);
 
-      if (authResponse.success && authResponse.token != null) {
-        await _saveSession(authResponse.token!, authResponse.user!);
+        if (authResponse.success && authResponse.token != null) {
+          await _saveSession(authResponse.token!, authResponse.user!);
+        }
+
+        return authResponse;
+      } catch (e) {
+        debugPrint('❌ Login parse error: $e');
+        debugPrint('❌ Login raw response: ${response.body}');
+        return AuthResponse(
+          success: false,
+          error: response.body.isNotEmpty ? response.body : 'Connection error. Please try again.',
+        );
       }
-
-      return authResponse;
     } catch (e) {
       debugPrint('❌ Login error: $e');
       return AuthResponse(
