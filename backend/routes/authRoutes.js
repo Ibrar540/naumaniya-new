@@ -128,6 +128,87 @@ router.post('/request-admin', authenticate, requireActive, async (req, res) => {
 });
 
 /**
+ * POST /auth/request-access
+ * Request access (full or readonly) for modules
+ */
+router.post('/request-access', authenticate, requireActive, async (req, res) => {
+  try {
+    const { type, modules, reason } = req.body; // modules optional array
+    const result = await authService.createAccessRequest(req.user.id, type, modules, reason);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /auth/requests
+ * Get current user's access requests
+ */
+router.get('/requests', authenticate, requireActive, async (req, res) => {
+  try {
+    const rows = await authService.getUserAccessRequests(req.user.id);
+    res.json({ success: true, requests: rows });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /auth/admin/access-requests
+ * Admin: list pending access requests
+ */
+router.get('/admin/access-requests', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const rows = await authService.getAccessRequests();
+    res.json({ success: true, requests: rows });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /auth/admin/review-access-request
+ * Admin: review (approve/reject) an access request
+ */
+router.post('/admin/review-access-request', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const { requestId, approve, grantModules } = req.body;
+    const result = await authService.reviewAccessRequest(requestId, req.user.id, approve, grantModules);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /auth/notifications
+ * Get notifications for current user
+ */
+router.get('/notifications', authenticate, requireActive, async (req, res) => {
+  try {
+    const rows = await authService.getNotifications(req.user.id);
+    res.json({ success: true, notifications: rows });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /auth/notifications/:id/read
+ * Mark a notification as read
+ */
+router.put('/notifications/:id/read', authenticate, requireActive, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const result = await authService.markNotificationRead(id, req.user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /auth/admin/requests
  * Get pending admin requests (admin only)
  */

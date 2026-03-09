@@ -13,6 +13,7 @@ const queryBuilder = require('./services/queryBuilder');
 const responseFormatter = require('./services/responseFormatter');
 const authRoutes = require('./routes/authRoutes');
 const { authenticate, requireActive } = require('./middleware/authMiddleware');
+const { denyIfReadonly } = require('./middleware/permissionMiddleware');
 const fs = require('fs');
 const path = require('path');
 
@@ -41,6 +42,17 @@ const app = express();
     }
   } catch (err) {
     console.error('Migration runner error:', err.message || err);
+  }
+})();
+
+// Cleanup old audit logs to keep history size bounded (delete entries older than 30 days)
+(async function cleanupOldHistory() {
+  try {
+    console.log('🔄 Cleaning up audit logs older than 30 days');
+    await db.query("DELETE FROM audit_logs WHERE created_at < (CURRENT_TIMESTAMP - INTERVAL '30 days')");
+    console.log('✅ Old audit logs cleanup complete');
+  } catch (e) {
+    console.error('Failed to cleanup old audit logs:', e.message || e);
   }
 })();
 
@@ -133,6 +145,17 @@ app.post('/ai-query', authenticate, requireActive, async (req, res) => {
       error: 'Internal server error',
       message: 'Sorry, I could not process your request.'
     });
+  }
+});
+
+// Example: protect a write endpoint with denyIfReadonly('madrasa')
+// (No write endpoints in index.js currently; this shows how to use the middleware)
+app.post('/example-protected-write', authenticate, requireActive, denyIfReadonly('madrasa'), async (req, res) => {
+  try {
+    // Example write handler
+    res.json({ success: true, message: 'Write allowed' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Failed' });
   }
 });
 

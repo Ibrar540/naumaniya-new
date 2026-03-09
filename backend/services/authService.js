@@ -359,6 +359,181 @@ class AuthService {
   }
 
   /**
+   * Create access request (full | readonly)
+   */
+  async createAccessRequest(userId, type, modules = null, reason = null) {
+    try {
+      if (!['full', 'readonly'].includes(type)) throw new Error('Invalid request type');
+
+      // Prevent duplicate pending requests (same user, type, modules)
+      const modulesText = modules ? JSON.stringify(modules) : '[]';
+      const existing = await db.query(
+        `SELECT id FROM access_requests WHERE user_id = $1 AND type = $2 AND COALESCE(modules::text, '[]') = $3 AND status = 'pending'`,
+        [userId, type, modulesText]
+      );
+
+      if (existing.rows.length > 0) {
+        throw new Error('You already have a pending similar access request');
+      }
+
+      await db.query(
+        `INSERT INTO access_requests (user_id, type, modules, reason) VALUES ($1, $2, $3::jsonb, $4)`,
+        [userId, type, modules ? JSON.stringify(modules) : null, reason]
+      );
+
+      // Notify all admins about the new access request
+      try {
+        const admins = await db.query("SELECT id, name FROM users WHERE role = 'admin'");
+        const msg = `User ${userId} requested ${type} access` + (reason ? `: ${reason}` : '');
+        for (const a of admins.rows) {
+          await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [a.id, msg, JSON.stringify({ type: 'access_request', userId, requestType: type })]);
+        }
+      } catch (e) {
+        console.error('Failed to create admin notifications for access request:', e);
+      }
+
+      return { success: true, message: 'Access request submitted' };
+    } catch (error) {
+      console.error('Create access request error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get current user's access requests
+   */
+  async getUserAccessRequests(userId) {
+    try {
+      const r = await db.query(
+        `SELECT ar.id, ar.user_id, ar.type, ar.modules, ar.status, ar.requested_at, ar.reviewed_at, ar.reviewed_by, ar.reason, u.name as user_name
+         FROM access_requests ar JOIN users u ON ar.user_id = u.id
+         WHERE ar.user_id = $1 ORDER BY ar.requested_at DESC`,
+        [userId]
+      );
+      return r.rows;
+    } catch (error) {
+      console.error('Get user access requests error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get notifications for a user
+   */
+  async getNotifications(userId) {
+    try {
+      const r = await db.query('SELECT id, message, data, is_read, created_at FROM notifications WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+      return r.rows;
+    } catch (e) {
+      console.error('Get notifications error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Mark notification as read
+   */
+  async markNotificationRead(notificationId, userId) {
+    try {
+      await db.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2', [notificationId, userId]);
+      return { success: true };
+    } catch (e) {
+      console.error('Mark notification read error:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Admin: list pending access requests
+   */
+  async getAccessRequests() {
+    try {
+      const r = await db.query(
+        `SELECT ar.id, ar.user_id, ar.type, ar.modules, ar.status, ar.requested_at, u.name as user_name
+         FROM access_requests ar JOIN users u ON ar.user_id = u.id
+         WHERE ar.status = 'pending' ORDER BY ar.requested_at ASC`
+      );
+      return r.rows;
+    } catch (error) {
+      console.error('Get access requests error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: review (approve/reject) access request
+   * If approve and type == 'readonly', insert access_grants rows for modules or blanket grant if modules null
+   */
+  async reviewAccessRequest(requestId, adminId, approve, grantModules = null) {
+    try {
+      const status = approve ? 'approved' : 'rejected';
+
+      // Get request details
+      const reqRow = await db.query('SELECT * FROM access_requests WHERE id = $1', [requestId]);
+      if (reqRow.rows.length === 0) throw new Error('Request not found');
+      const request = reqRow.rows[0];
+
+      // Update request status
+      await db.query(
+        `UPDATE access_requests SET status = $1, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $2 WHERE id = $3`,
+        [status, adminId, requestId]
+      );
+
+      if (approve) {
+        if (request.type === 'full') {
+          // Grant full role by updating users.role
+          await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', request.user_id]);
+          // If full means admin, that's separate; assume 'full' means full non-admin access — keep role unchanged
+        }
+
+        if (request.type === 'readonly') {
+          // Insert grants; if modules is null, insert a blanket readonly grant with module_name NULL
+          const modules = request.modules ? JSON.parse(request.modules) : null;
+          if (!modules || modules.length === 0) {
+            await db.query(
+              `INSERT INTO access_grants (user_id, module_name, permission, granted_by) VALUES ($1, $2, $3, $4)`,
+              [request.user_id, null, 'readonly', adminId]
+            );
+          } else {
+            const insertPromises = modules.map(m => {
+              return db.query(
+                `INSERT INTO access_grants (user_id, module_name, permission, granted_by) VALUES ($1, $2, $3, $4)`,
+                [request.user_id, m, 'readonly', adminId]
+              );
+            });
+            await Promise.all(insertPromises);
+          }
+        }
+
+        // Log audit
+        await this.logAudit(adminId, 'approve_access_request', request.user_id, `Approved access request id=${requestId} type=${request.type}`);
+
+        // Notify the requester
+        try {
+          const msg = `Your access request (id=${requestId}) was approved`;
+          await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [request.user_id, msg, JSON.stringify({ type: 'access_request_review', requestId, approved: true })]);
+        } catch (e) {
+          console.error('Failed to notify requester about approval:', e);
+        }
+      } else {
+        await this.logAudit(adminId, 'reject_access_request', request.user_id, `Rejected access request id=${requestId}`);
+        // Notify the requester about rejection
+        try {
+          const msg = `Your access request (id=${requestId}) was rejected`;
+          await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [request.user_id, msg, JSON.stringify({ type: 'access_request_review', requestId, approved: false })]);
+        } catch (e) {
+          console.error('Failed to notify requester about rejection:', e);
+        }
+      }
+
+      return { success: true, message: `Request ${status}` };
+    } catch (error) {
+      console.error('Review access request error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get pending admin requests (admin only)
    */
   async getPendingRequests() {

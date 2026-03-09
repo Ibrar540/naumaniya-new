@@ -45,6 +45,7 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
   void initState() {
     super.initState();
     _initAuth();
+    _loadSections();
   }
 
   Future<void> _initAuth() async {
@@ -188,12 +189,52 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
           ),
         ),
         child: SafeArea(
-          child: _selectedAction == null
-              ? _buildActionSelection(isUrdu)
-              : _selectedAction == 'create'
-                  ? _buildCreateSection(isUrdu)
-                  : _buildViewSections(isUrdu),
+          child: _loadingSections
+              ? Center(child: CircularProgressIndicator(color: Colors.white))
+              : _buildViewSections(isUrdu),
         ),
+      ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: _showCreateSectionDialog,
+              backgroundColor: Colors.green,
+              child: Icon(Icons.add),
+              tooltip: isUrdu ? 'سیکشن بنائیں' : 'Create Section',
+            )
+          : null,
+    );
+  }
+
+  void _showCreateSectionDialog() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final isUrdu = languageProvider.isUrdu;
+    _sectionNameController.clear();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isUrdu ? 'سیکشن بنائیں' : 'Create Section'),
+        content: TextField(
+          controller: _sectionNameController,
+          decoration: InputDecoration(
+            labelText: isUrdu ? 'سیکشن کا نام' : 'Section Name',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(isUrdu ? 'منسوخ' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _createSection();
+              await _loadSections();
+            },
+            child: Text(isUrdu ? 'بنائیں' : 'Create'),
+          ),
+        ],
       ),
     );
   }

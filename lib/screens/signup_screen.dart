@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../providers/language_provider.dart';
 import 'home_screen.dart';
+import 'request_access_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -48,8 +49,9 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = false);
 
     if (response.success) {
+      // After signup, lead user to RequestAccessScreen to choose access requests
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const RequestAccessScreen()),
       );
     } else {
       setState(() {

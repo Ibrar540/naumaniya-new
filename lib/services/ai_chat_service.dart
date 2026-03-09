@@ -32,11 +32,16 @@ class AIChatService {
     );
     _conversationHistory.add(userChatMessage);
 
+    // If the user's message contains Urdu script, prefer Urdu responses
+    // regardless of the app language toggle.
+    final containsUrdu = RegExp(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]').hasMatch(userMessage);
+    final finalIsUrdu = isUrdu || containsUrdu;
+
     try {
       // Check if query is financial (budget-related)
       if (_isFinancialQuery(userMessage)) {
         // Use backend AI for financial queries
-        final responseContent = await _queryBackendAI(userMessage, isUrdu);
+        final responseContent = await _queryBackendAI(userMessage, finalIsUrdu);
         final assistantMessage = ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: MessageRole.assistant,
@@ -48,7 +53,7 @@ class AIChatService {
         return assistantMessage;
       } else {
         // Use local response for non-financial queries
-        final responseContent = _generateResponse(userMessage, isUrdu);
+        final responseContent = _generateResponse(userMessage, finalIsUrdu);
         final assistantMessage = ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           role: MessageRole.assistant,
@@ -65,10 +70,10 @@ class AIChatService {
       final errorMessage = ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         role: MessageRole.assistant,
-        content: isUrdu
+        content: finalIsUrdu
             ? 'معذرت، میں آپ کی درخواست کو سمجھنے میں ناکام رہا۔ براہ کرم دوبارہ کوشش کریں یا اپنا سوال مختلف انداز میں پوچھیں۔'
             : 'I apologize, but I couldn\'t understand your request. Please try again or rephrase your question.',
-        suggestions: _getDefaultSuggestions(isUrdu),
+        suggestions: _getDefaultSuggestions(finalIsUrdu),
       );
 
       _conversationHistory.add(errorMessage);

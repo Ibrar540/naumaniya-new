@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import 'request_access_screen.dart';
 import '../providers/language_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -212,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isUrdu = languageProvider.isUrdu;
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(isUrdu ? 'ترتیبات' : 'Settings'),
@@ -223,6 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             tabs: [
               Tab(text: isUrdu ? 'پروفائل' : 'Profile'),
               Tab(text: isUrdu ? 'صارفین' : 'Users'),
+              Tab(text: isUrdu ? 'درخواستیں' : 'Requests'),
               Tab(text: isUrdu ? 'تاریخ' : 'History'),
             ],
           ),
@@ -231,10 +233,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildProfileTab(),
             _buildUsersTab(),
+            _buildRequestsTab(),
             _buildHistoryTab(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRequestsTab() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isUrdu = languageProvider.isUrdu;
+
+    if (_isAdmin) {
+      // Admin: show pending access requests
+      return RefreshIndicator(
+        onRefresh: _loadAdminData,
+        child: ListView(
+          children: [
+            Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(isUrdu ? 'رسائی کی درخواستیں' : 'Access Requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ..._requests.map((r) {
+              return ListTile(
+                title: Text(r['user_name'] ?? ''),
+                subtitle: Text('${r['type'] ?? ''} • ${r['reason'] ?? ''}'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(onPressed: () async { await _auth.reviewAccessRequest(r['id'], true); _loadAdminData(); }, child: Text(isUrdu ? 'منظور' : 'Approve')),
+                    TextButton(onPressed: () async { await _auth.reviewAccessRequest(r['id'], false); _loadAdminData(); }, child: Text(isUrdu ? 'رد' : 'Reject')),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
+
+    // Non-admin: show current user's requests and allow creating new one
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _auth.getUserAccessRequests(),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) return Center(child: CircularProgressIndicator());
+        final items = snap.data ?? [];
+        return ListView(
+          padding: EdgeInsets.all(12),
+          children: [
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestAccessScreen()));
+              },
+              child: Text(isUrdu ? 'درخواست بنائیں' : 'Create Request'),
+            ),
+            SizedBox(height: 12),
+            ...items.map((r) => ListTile(
+              title: Text('${r['type'] ?? ''} • ${r['status'] ?? ''}'),
+              subtitle: Text(r['reason'] ?? ''),
+            )).toList(),
+          ],
+        );
+      },
     );
   }
 }

@@ -5,15 +5,18 @@ import 'ai_chat_screen.dart';
 import 'madrasa_budget_screen.dart';
 import 'students_screen.dart';
 import 'settings_screen.dart';
+import 'notifications_screen.dart';
 import 'teachers_screen.dart';
 import 'budget_enter_data_screen.dart';
 import 'class_management_screen.dart';
+import 'classes_list_screen.dart';
 import 'student_enter_data_screen.dart';
 import 'teacher_enter_data_screen.dart';
 import 'teacher_options_screen.dart';
 import 'admission_office_screen.dart';
 import 'masjid_budget_screen.dart';
 import 'dart:ui';
+import 'dart:io' show Platform;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -117,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         'title': languageProvider.isUrdu ? 'کلاسز' : 'Classes',
         'subtitle': languageProvider.isUrdu ? 'کلاس مینجمنٹ' : 'Class Management',
         'color': Colors.green,
-        'onTap': () => _showStudentPortfolioOptions(context, languageProvider),
+        'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (context) => ClassesListScreen())),
       },
       {
         'icon': Icons.school,
@@ -225,15 +228,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         padding: EdgeInsets.all(8),
                         constraints: BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
-                        // Settings icon below language switch
-                        IconButton(
-                          icon: Icon(Icons.settings, color: Colors.white),
-                          onPressed: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen()));
-                          },
-                          tooltip: languageProvider.getText('settings'),
-                          padding: EdgeInsets.all(8),
-                          constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                        // Notifications and Settings icons below language switch
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.notifications, color: Colors.white),
+                              onPressed: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen()));
+                              },
+                              tooltip: languageProvider.getText('notifications') ?? 'Notifications',
+                              padding: EdgeInsets.all(8),
+                              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.settings, color: Colors.white),
+                              onPressed: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen()));
+                              },
+                              tooltip: languageProvider.getText('settings'),
+                              padding: EdgeInsets.all(8),
+                              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -241,55 +258,116 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          // Modules (Scrollable, 4 at a time)
+          // Modules (Scrollable, 4 at a time) - on Android show stacked square view
             Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 16, left: 12, right: 12, bottom: 8),
-                      child: _buildScrollableModules(context, modules, isMobile),
-                    ),
-                  ),
-                                                        // Page indicator
-                   Container(
-                     height: 20,
-                     child: Row(
-                       mainAxisAlignment: MainAxisAlignment.center,
-                       children: List.generate(
-                         (modules.length / 4).ceil(),
-                         (index) => AnimatedContainer(
-                           duration: Duration(milliseconds: 300),
-                           width: index == _currentPage ? 12 : 8,
-                           height: 8,
-                           margin: EdgeInsets.symmetric(horizontal: 4),
-                           decoration: BoxDecoration(
-                             shape: BoxShape.circle,
-                             color: index == _currentPage ? Color(0xFF1976D2) : Colors.grey[300],
-                           ),
-                         ),
-                       ),
-                     ),
-                   ),
-                   // Scroll hint
-                   if ((modules.length / 4).ceil() > 1)
-                     Container(
-                       padding: EdgeInsets.symmetric(vertical: 4),
-                       child: Text(
-                         languageProvider.isUrdu ? 'سکرول کریں مزید دیکھنے کے لیے' : 'Scroll to see more',
-                         style: TextStyle(
-                           fontSize: 12,
-                           color: Colors.grey[600],
-                           fontStyle: FontStyle.italic,
-                         ),
-                       ),
-                     ),
-                   SizedBox(height: 8),
-                ],
+              child: Padding(
+                padding: EdgeInsets.only(top: 16, left: 12, right: 12, bottom: 8),
+                child: Platform.isAndroid
+                    ? _buildAndroidStackedModules(context, modules, isMobile)
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: _buildScrollableModules(context, modules, isMobile),
+                          ),
+                          // Page indicator
+                          Container(
+                            height: 20,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(
+                                (modules.length / 4).ceil(),
+                                (index) => AnimatedContainer(
+                                  duration: Duration(milliseconds: 300),
+                                  width: index == _currentPage ? 12 : 8,
+                                  height: 8,
+                                  margin: EdgeInsets.symmetric(horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: index == _currentPage ? Color(0xFF1976D2) : Colors.grey[300],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Scroll hint
+                          if ((modules.length / 4).ceil() > 1)
+                            Container(
+                              padding: EdgeInsets.symmetric(vertical: 4),
+                              child: Text(
+                                languageProvider.isUrdu ? 'سکرول کریں مزید دیکھنے کے لیے' : 'Scroll to see more',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          SizedBox(height: 8),
+                        ],
+                      ),
               ),
             ),
           ],
       ),
+    );
+  }
+
+  /// Android-only: Stacked square modules (Madrasa above, AI Assistant below)
+  Widget _buildAndroidStackedModules(BuildContext context, List<Map<String, dynamic>> modules, bool isMobile) {
+    // Find budget (madrasa) and AI assistant modules. Fallback to indices if not found.
+    Map<String, dynamic>? budgetModule;
+    Map<String, dynamic>? aiModule;
+    for (final m in modules) {
+      final title = m['title']?.toString().toLowerCase() ?? '';
+      if (title.contains('budget') || title.contains('madrasa') || title.contains('masjid') || title.contains('budget_management')) {
+        if (budgetModule == null) budgetModule = m;
+      }
+      if (title.contains('ai') || (m['subtitle']?.toString().toLowerCase() ?? '').contains('ai') || title.contains('assistant')) {
+        if (aiModule == null) aiModule = m;
+      }
+    }
+
+    budgetModule ??= modules.length > 4 ? modules[4] : modules.first;
+    aiModule ??= modules.length > 5 ? modules[5] : modules.last;
+
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _buildPrettyModuleCard(
+                context,
+                icon: budgetModule['icon'],
+                title: budgetModule['title'],
+                subtitle: budgetModule['subtitle'],
+                color: budgetModule['color'],
+                onTap: budgetModule['onTap'],
+                isMobile: isMobile,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 12),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _buildPrettyModuleCard(
+                context,
+                icon: aiModule['icon'],
+                title: aiModule['title'],
+                subtitle: aiModule['subtitle'],
+                color: aiModule['color'],
+                onTap: aiModule['onTap'],
+                isMobile: isMobile,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

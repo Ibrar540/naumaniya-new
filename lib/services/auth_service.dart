@@ -232,6 +232,128 @@ class AuthService {
     }
   }
 
+  /// Create access request (full | readonly) optionally scoped to modules
+  Future<bool> createAccessRequest(String type, List<String>? modules, String? reason) async {
+    try {
+      if (_token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/request-access'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode({
+          'type': type,
+          'modules': modules,
+          'reason': reason,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Create access request error: $e');
+      return false;
+    }
+  }
+
+  /// Get current user's access requests
+  Future<List<Map<String, dynamic>>> getUserAccessRequests() async {
+    try {
+      if (_token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/requests'),
+        headers: getAuthHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return List<Map<String, dynamic>>.from(data['requests']);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ Get user access requests error: $e');
+      return [];
+    }
+  }
+
+  /// Admin: get pending access requests
+  Future<List<Map<String, dynamic>>> getAccessRequests() async {
+    try {
+      if (_token == null || !isAdmin) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/admin/access-requests'),
+        headers: getAuthHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) return List<Map<String, dynamic>>.from(data['requests']);
+      return [];
+    } catch (e) {
+      debugPrint('❌ Get access requests error: $e');
+      return [];
+    }
+  }
+
+  /// Admin: review access request
+  Future<bool> reviewAccessRequest(int requestId, bool approve, {List<String>? grantModules}) async {
+    try {
+      if (_token == null || !isAdmin) return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/admin/review-access-request'),
+        headers: getAuthHeaders(),
+        body: jsonEncode({ 'requestId': requestId, 'approve': approve, 'grantModules': grantModules }),
+      );
+
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Review access request error: $e');
+      return false;
+    }
+  }
+
+  /// Get notifications for current user
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    try {
+      if (_token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/notifications'),
+        headers: getAuthHeaders(),
+      );
+
+      final data = jsonDecode(response.body);
+      if (data['success'] == true && data['notifications'] != null) {
+        return List<Map<String, dynamic>>.from(data['notifications']);
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ Get notifications error: $e');
+      return [];
+    }
+  }
+
+  /// Mark a notification as read
+  Future<bool> markNotificationRead(int id) async {
+    try {
+      if (_token == null) return false;
+      final response = await http.put(
+        Uri.parse('$baseUrl/auth/notifications/$id/read'),
+        headers: getAuthHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Mark notification read error: $e');
+      return false;
+    }
+  }
+
   /// Get pending admin requests (admin only)
   Future<List<Map<String, dynamic>>> getPendingRequests() async {
     try {
