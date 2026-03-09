@@ -14,16 +14,17 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
   final AuthService _auth = AuthService();
   bool _isLoading = false;
   String _type = 'readonly';
-  final _modulesController = TextEditingController();
   final _reasonController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _auth.initialize();
+  }
 
   Future<void> _sendRequest() async {
     setState(() => _isLoading = true);
-    final modules = _modulesController.text.trim().isEmpty
-        ? null
-        : _modulesController.text.split(',').map((s) => s.trim()).toList();
-
-    final ok = await _auth.createAccessRequest(_type, modules, _reasonController.text.trim());
+    final ok = await _auth.createAccessRequest(_type, null, _reasonController.text.trim());
     setState(() => _isLoading = false);
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request submitted')));
@@ -35,7 +36,6 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
 
   @override
   void dispose() {
-    _modulesController.dispose();
     _reasonController.dispose();
     super.dispose();
   }
@@ -51,19 +51,15 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            ListTile(
-              title: Text(isUrdu ? 'صرف پڑھنے کی رسائی' : 'Read-only access'),
-              leading: Radio<String>(value: 'readonly', groupValue: _type, onChanged: (v) => setState(() => _type = v!)),
+            ToggleButtons(
+              isSelected: [_type == 'readonly', _type == 'full'],
+              onPressed: (idx) => setState(() => _type = idx == 0 ? 'readonly' : 'full'),
+              children: [
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text(isUrdu ? 'صرف پڑھنے کی رسائی' : 'Read-only')),
+                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text(isUrdu ? 'مکمل رسائی' : 'Full access')),
+              ],
             ),
-            ListTile(
-              title: Text(isUrdu ? 'مکمل رسائی' : 'Full access'),
-              leading: Radio<String>(value: 'full', groupValue: _type, onChanged: (v) => setState(() => _type = v!)),
-            ),
-            TextField(
-              controller: _modulesController,
-              decoration: InputDecoration(labelText: isUrdu ? 'ماڈیولز (کوما سے جدا کریں)' : 'Modules (comma-separated)', hintText: isUrdu ? 'مثال: madrasa, masjid' : 'e.g. madrasa, masjid'),
-            ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             TextField(
               controller: _reasonController,
               decoration: InputDecoration(labelText: isUrdu ? 'وجہ (اختیاری)' : 'Reason (optional)'),
