@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import 'request_access_screen.dart';
+import 'login_screen.dart';
 import '../providers/language_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -114,6 +115,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Text(isUrdu ? 'ایڈمن کی درخواست بھیجیں' : 'Request Admin Access'),
               ),
             ),
+          SizedBox(height: 24),
+          Divider(),
+          SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: Icon(Icons.logout),
+              label: Text(isUrdu ? 'لاگ آؤٹ' : 'Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(isUrdu ? 'لاگ آؤٹ' : 'Logout'),
+                    content: Text(isUrdu ? 'کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟' : 'Are you sure you want to logout?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isUrdu ? 'منسوخ' : 'Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isUrdu ? 'لاگ آؤٹ' : 'Logout', style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  await _auth.logout();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                }
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -186,21 +224,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!_isAdmin) return Center(child: Text(isUrdu ? 'صرف ایڈمن کو اجازت ہے' : 'Admin only'));
 
+    if (_history.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadAdminData,
+        child: ListView(
+          children: [
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  isUrdu ? 'کوئی تاریخ نہیں' : 'No history available',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _loadAdminData,
-      child: ListView.builder(
+      child: ListView.separated(
+        padding: EdgeInsets.all(12),
         itemCount: _history.length,
+        separatorBuilder: (_, __) => Divider(height: 1),
         itemBuilder: (context, idx) {
           final h = _history[idx];
           final when = h['created_at'] ?? '';
           final actor = h['actor_name'] ?? h['actor_id']?.toString() ?? '';
           final action = h['action'] ?? '';
           final details = h['details'] ?? '';
-
           return ListTile(
-            title: Text('$action — $actor'),
-            subtitle: Text('$details\n$when'),
-            isThreeLine: true,
+            leading: CircleAvatar(
+              radius: 18,
+              backgroundColor: Color(0xFF1976D2).withOpacity(0.12),
+              child: Icon(Icons.history, size: 18, color: Color(0xFF1976D2)),
+            ),
+            title: Text('$action — $actor', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            subtitle: Text('$details\n$when', style: TextStyle(fontSize: 11)),
+            isThreeLine: details.isNotEmpty,
           );
         },
       ),
@@ -245,57 +308,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final isUrdu = languageProvider.isUrdu;
 
-    if (_isAdmin) {
-      // Admin: show pending access requests
+    if (!_isAdmin) {
+      // Non-admin: show current user's requests and allow creating new one
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: _auth.getUserAccessRequests(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return Center(child: CircularProgressIndicator());
+          }
+          final items = snap.data ?? [];
+          return ListView(
+            padding: EdgeInsets.all(12),
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestAccessScreen()));
+                },
+                child: Text(isUrdu ? 'درخواست بنائیں' : 'Create Request'),
+              ),
+              SizedBox(height: 12),
+              ...items.map((r) => ListTile(
+                title: Text('${r['type'] ?? ''} • ${r['status'] ?? ''}'),
+                subtitle: Text(r['reason'] ?? ''),
+              )).toList(),
+            ],
+          );
+        },
+      );
+    }
+
+    // Admin: show pending admin requests from _requests list
+    if (_requests.isEmpty) {
       return RefreshIndicator(
         onRefresh: _loadAdminData,
         child: ListView(
           children: [
             Padding(
               padding: EdgeInsets.all(12),
-              child: Text(isUrdu ? 'رسائی کی درخواستیں' : 'Access Requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              child: Text(
+                isUrdu ? 'رسائی کی درخواستیں' : 'Access Requests',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
-            ..._requests.map((r) {
-              return ListTile(
-                title: Text(r['user_name'] ?? ''),
-                subtitle: Text('${r['type'] ?? ''} • ${r['reason'] ?? ''}'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(onPressed: () async { await _auth.reviewAccessRequest(r['id'], true); _loadAdminData(); }, child: Text(isUrdu ? 'منظور' : 'Approve')),
-                    TextButton(onPressed: () async { await _auth.reviewAccessRequest(r['id'], false); _loadAdminData(); }, child: Text(isUrdu ? 'رد' : 'Reject')),
-                  ],
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  isUrdu ? 'کوئی درخواست نہیں' : 'No pending requests',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
-              );
-            }).toList(),
+              ),
+            ),
           ],
         ),
       );
     }
 
-    // Non-admin: show current user's requests and allow creating new one
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _auth.getUserAccessRequests(),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) return Center(child: CircularProgressIndicator());
-        final items = snap.data ?? [];
-        return ListView(
-          padding: EdgeInsets.all(12),
-          children: [
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestAccessScreen()));
-              },
-              child: Text(isUrdu ? 'درخواست بنائیں' : 'Create Request'),
+    return RefreshIndicator(
+      onRefresh: _loadAdminData,
+      child: ListView(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              isUrdu ? 'رسائی کی درخواستیں (${_requests.length})' : 'Access Requests (${_requests.length})',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 12),
-            ...items.map((r) => ListTile(
-              title: Text('${r['type'] ?? ''} • ${r['status'] ?? ''}'),
-              subtitle: Text(r['reason'] ?? ''),
-            )).toList(),
-          ],
-        );
-      },
+          ),
+          ..._requests.map((r) {
+            return Card(
+              margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.withOpacity(0.15),
+                  child: Icon(Icons.person, color: Colors.orange),
+                ),
+                title: Text(r['user_name'] ?? r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(r['reason'] ?? ''),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        await _auth.reviewAdminRequest(r['id'], true);
+                        _loadAdminData();
+                      },
+                      child: Text(isUrdu ? 'منظور' : 'Approve', style: TextStyle(color: Colors.green)),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await _auth.reviewAdminRequest(r['id'], false);
+                        _loadAdminData();
+                      },
+                      child: Text(isUrdu ? 'رد' : 'Reject', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
 }

@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const authService = require('../services/authService');
 const { authenticate, requireAdmin, requireActive } = require('../middleware/authMiddleware');
+const notificationService = require('../services/notificationService');
 
 /**
  * POST /auth/signup
@@ -118,6 +119,11 @@ router.post('/request-admin', authenticate, requireActive, async (req, res) => {
   try {
     const { reason } = req.body;
     const result = await authService.requestAdminAccess(req.user.id, reason);
+
+    // Fire push notification to all admins (non-blocking)
+    notificationService.notifyAdminsNewRequest(req.user.name, reason || 'No reason provided')
+      .catch(e => console.error('Push notification error:', e.message));
+
     res.json(result);
   } catch (error) {
     res.status(400).json({
@@ -324,6 +330,36 @@ router.delete('/admin/user/:userId', authenticate, requireActive, requireAdmin, 
       success: false,
       error: error.message,
     });
+  }
+});
+
+/**
+ * POST /auth/register-fcm-token
+ * Save device FCM token for push notifications
+ */
+router.post('/register-fcm-token', authenticate, requireActive, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) return res.status(400).json({ success: false, error: 'fcmToken required' });
+    await notificationService.saveFcmToken(req.user.id, fcmToken);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /auth/unregister-fcm-token
+ * Remove device FCM token on logout
+ */
+router.post('/unregister-fcm-token', authenticate, async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    if (!fcmToken) return res.status(400).json({ success: false, error: 'fcmToken required' });
+    await notificationService.removeFcmToken(req.user.id, fcmToken);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 

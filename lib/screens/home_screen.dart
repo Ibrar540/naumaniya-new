@@ -312,62 +312,98 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Android-only: Stacked square modules (Madrasa above, AI Assistant below)
+  /// Android-only: All 6 modules in a 2-column, 3-row square grid on one page
   Widget _buildAndroidStackedModules(BuildContext context, List<Map<String, dynamic>> modules, bool isMobile) {
-    // Find budget (madrasa) and AI assistant modules. Fallback to indices if not found.
-    Map<String, dynamic>? budgetModule;
-    Map<String, dynamic>? aiModule;
-    for (final m in modules) {
-      final title = m['title']?.toString().toLowerCase() ?? '';
-      if (title.contains('budget') || title.contains('madrasa') || title.contains('masjid') || title.contains('budget_management')) {
-        if (budgetModule == null) budgetModule = m;
-      }
-      if (title.contains('ai') || (m['subtitle']?.toString().toLowerCase() ?? '').contains('ai') || title.contains('assistant')) {
-        if (aiModule == null) aiModule = m;
-      }
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Each card gets equal height across 3 rows, with spacing
+        const spacing = 10.0;
+        const padding = 8.0;
+        final cardHeight = (constraints.maxHeight - padding * 2 - spacing * 2) / 3;
 
-    budgetModule ??= modules.length > 4 ? modules[4] : modules.first;
-    aiModule ??= modules.length > 5 ? modules[5] : modules.last;
+        return Padding(
+          padding: const EdgeInsets.all(padding),
+          child: Column(
+            children: List.generate(3, (row) {
+              final left = modules[row * 2];
+              final right = modules[row * 2 + 1];
+              return Padding(
+                padding: EdgeInsets.only(bottom: row < 2 ? spacing : 0),
+                child: SizedBox(
+                  height: cardHeight,
+                  child: Row(
+                    children: [
+                      Expanded(child: _buildAndroidSquareCard(context, left, isMobile)),
+                      const SizedBox(width: spacing),
+                      Expanded(child: _buildAndroidSquareCard(context, right, isMobile)),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
 
-    return Column(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: _buildPrettyModuleCard(
-                context,
-                icon: budgetModule['icon'],
-                title: budgetModule['title'],
-                subtitle: budgetModule['subtitle'],
-                color: budgetModule['color'],
-                onTap: budgetModule['onTap'],
-                isMobile: isMobile,
+  Widget _buildAndroidSquareCard(BuildContext context, Map<String, dynamic> m, bool isMobile) {
+    final color = m['color'] as Color;
+    return GestureDetector(
+      onTap: m['onTap'] as VoidCallback,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+          boxShadow: [
+            BoxShadow(color: color.withOpacity(0.10), blurRadius: 10, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [color.withOpacity(0.28), color.withOpacity(0.10)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(m['icon'] as IconData, size: 26, color: color),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                m['title'] as String,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ),
-        SizedBox(height: 12),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: _buildPrettyModuleCard(
-                context,
-                icon: aiModule['icon'],
-                title: aiModule['title'],
-                subtitle: aiModule['subtitle'],
-                color: aiModule['color'],
-                onTap: aiModule['onTap'],
-                isMobile: isMobile,
+            const SizedBox(height: 3),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                m['subtitle'] as String,
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

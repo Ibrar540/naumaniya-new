@@ -249,11 +249,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           ],
                         ),
                       )
-                    : SingleChildScrollView(
-                        padding: EdgeInsets.all(16),
+                    : Container(
+                        color: Colors.white,
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: _buildDataTable(languageProvider),
+                          child: InteractiveViewer(
+                            panEnabled: true,
+                            scaleEnabled: true,
+                            minScale: 0.5,
+                            maxScale: 2.5,
+                            child: _buildDataTable(languageProvider),
+                          ),
                         ),
                       ),
               ),
@@ -267,124 +273,71 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Widget _buildDataTable(LanguageProvider languageProvider) {
     final isUrdu = languageProvider.isUrdu;
     
-    // Define columns
-    List<DataColumn> columns = [
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'رول نمبر' : 'Roll No', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'ID' : 'ID', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'نام' : 'Name', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'والد کا نام' : 'Father Name', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'موبائل نمبر' : 'Mobile No', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'فیس' : 'Fee', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-      DataColumn(label: Expanded(child: Text(isUrdu ? 'اعمال' : 'Actions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)))),
-    ];
-    
-    // Reverse columns for Urdu (RTL)
-    if (isUrdu) {
-      columns = columns.reversed.toList();
-    }
-    
-    return Container(
-      width: MediaQuery.of(context).size.width - 32,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: DataTable(
-        columnSpacing: 20,
-        horizontalMargin: 10,
-        border: TableBorder.all(
-          color: Colors.grey[400]!,
-          width: 1,
-        ),
-        columns: columns,
-        rows: _filteredStudents.map((student) {
-          List<DataCell> cells = [
-            DataCell(Text(student.rollNo?.toString() ?? '-')),
-            DataCell(Text(student.id?.toString() ?? '-')),
-            DataCell(Text(student.name)),
-            DataCell(Text(student.fatherName)),
-            DataCell(Text(student.mobile)),
-            DataCell(Text(student.fee)),
-            DataCell(
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert),
-                onSelected: (value) async {
-                  switch (value) {
-                    case 'edit':
-                      await _editStudent(student);
-                      break;
-                    case 'delete':
-                      await _deleteStudent(student);
-                      break;
-                    case 'graduate':
-                      await _updateStatus(student, 'Graduate');
-                      break;
-                    case 'struck_off':
-                      await _updateStatus(student, 'Struck Off');
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text(languageProvider.isUrdu ? 'ترمیم' : 'Edit'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text(languageProvider.isUrdu ? 'حذف' : 'Delete'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'graduate',
-                    child: Row(
-                      children: [
-                        Icon(Icons.school, color: Colors.green),
-                        SizedBox(width: 8),
-                        Text(languageProvider.isUrdu ? 'گریجویٹ کے طور پر نشان زد کریں' : 'Mark as Graduate'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'struck_off',
-                    child: Row(
-                      children: [
-                        Icon(Icons.cancel, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text(languageProvider.isUrdu ? 'خارج شدہ کے طور پر نشان زد کریں' : 'Mark as Struck Off'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+    return DataTable(
+      border: TableBorder.all(color: Colors.grey[400]!, width: 1),
+      columnSpacing: 8,
+      headingRowHeight: 36,
+      dataRowMinHeight: 32,
+      dataRowMaxHeight: 40,
+      columns: isUrdu
+          ? [
+              DataColumn(label: Container(width: 70, alignment: Alignment.center, child: Text('اعمال', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 65, alignment: Alignment.center, child: Text('فیس', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 85, alignment: Alignment.center, child: Text('موبائل نمبر', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 100, alignment: Alignment.center, child: Text('والد کا نام', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 100, alignment: Alignment.center, child: Text('نام', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 40, alignment: Alignment.center, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 50, alignment: Alignment.center, child: Text('رول نمبر', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+            ]
+          : [
+              DataColumn(label: Container(width: 50, alignment: Alignment.center, child: Text('Roll No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 40, alignment: Alignment.center, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 100, alignment: Alignment.center, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 100, alignment: Alignment.center, child: Text('Father Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 85, alignment: Alignment.center, child: Text('Mobile No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 65, alignment: Alignment.center, child: Text('Fee', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+              DataColumn(label: Container(width: 70, alignment: Alignment.center, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+            ],
+      rows: _filteredStudents.map((student) {
+        final cells = [
+          DataCell(Container(width: 50, alignment: Alignment.center, child: Text(student.rollNo?.toString() ?? '-', style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(width: 40, alignment: Alignment.center, child: Text(student.id?.toString() ?? '-', style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(width: 100, alignment: Alignment.center, child: Text(student.name, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(width: 100, alignment: Alignment.center, child: Text(student.fatherName, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(width: 85, alignment: Alignment.center, child: Text(student.mobile, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(width: 65, alignment: Alignment.center, child: Text(student.fee, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+          DataCell(Container(
+            width: 70,
+            alignment: Alignment.center,
+            child: PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert),
+              onSelected: (value) async {
+                switch (value) {
+                  case 'edit':
+                    await _editStudent(student);
+                    break;
+                  case 'delete':
+                    await _deleteStudent(student);
+                    break;
+                  case 'graduate':
+                    await _updateStatus(student, 'Graduate');
+                    break;
+                  case 'struck_off':
+                    await _updateStatus(student, 'Struck Off');
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 16), SizedBox(width: 8), Text(languageProvider.isUrdu ? 'ترمیم' : 'Edit')])),
+                PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 16), SizedBox(width: 8), Text(languageProvider.isUrdu ? 'حذف' : 'Delete')])),
+                PopupMenuItem(value: 'graduate', child: Row(children: [Icon(Icons.school, color: Colors.green, size: 16), SizedBox(width: 8), Text(languageProvider.isUrdu ? 'گریجویٹ' : 'Graduate')])),
+                PopupMenuItem(value: 'struck_off', child: Row(children: [Icon(Icons.cancel, color: Colors.orange, size: 16), SizedBox(width: 8), Text(languageProvider.isUrdu ? 'خارج شدہ' : 'Struck Off')])),
+              ],
             ),
-          ];
-          
-          // Reverse cells for Urdu (RTL)
-          if (isUrdu) {
-            cells = cells.reversed.toList();
-          }
-          
-          return DataRow(cells: cells);
-        }).toList(),
-      ),
+          )),
+        ];
+        return DataRow(cells: isUrdu ? cells.reversed.toList() : cells);
+      }).toList(),
     );
   }
 

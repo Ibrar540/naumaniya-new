@@ -92,3 +92,14 @@ BEGIN
 END$$;
 
 COMMENT ON TABLE access_requests IS 'Tracks user requests for full or readonly access to modules';
+
+-- FCM device tokens for push notifications
+CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_fcm_tokens_user_id ON user_fcm_tokens(user_id);

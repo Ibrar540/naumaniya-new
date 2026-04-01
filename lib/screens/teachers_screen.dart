@@ -534,69 +534,68 @@ class _TeachersScreenState extends State<TeachersScreen> {
                           child: InteractiveViewer(
                             panEnabled: true,
                             scaleEnabled: true,
-                            minScale: 0.8,
+                            minScale: 0.5,
                             maxScale: 2.5,
                             child: DataTable(
                                 border: TableBorder.all(
                                   color: Colors.grey[400]!,
                                   width: 1,
                                 ),
+                                columnSpacing: 8,
+                                headingRowHeight: 36,
+                                dataRowMinHeight: 32,
+                                dataRowMaxHeight: 40,
                                 columns: languageProvider.isUrdu
                                   ? [
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('عمل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('چھوڑنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('شروع کرنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('حیثیت', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('تنخواہ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 120, child: Text('موبائل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 150, child: Text('نام', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                                      DataColumn(label: Container(alignment: Alignment.center, width: 60, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 70, child: Text('عمل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 90, child: Text('چھوڑنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 90, child: Text('شروع کرنے کی تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 65, child: Text('حیثیت', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 65, child: Text('تنخواہ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 85, child: Text('موبائل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('نام', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                                      DataColumn(label: Container(alignment: Alignment.center, width: 40, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
                                     ]
                                   : [
-                              DataColumn(label: Container(alignment: Alignment.center, width: 60, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 150, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 120, child: Text('Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Salary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('Starting Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 140, child: Text('Leaving Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
-                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 40, child: Text('ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 100, child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 85, child: Text('Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 65, child: Text('Salary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 65, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 90, child: Text('Start Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 90, child: Text('Leave Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
+                              DataColumn(label: Container(alignment: Alignment.center, width: 70, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.center))),
                                     ],
                             rows: _filteredTeachers.map((teacher) {
                               final cells = [
-                                DataCell(Container(width: 60, alignment: Alignment.center, child: Text(teacher.id?.toString() ?? '', textAlign: TextAlign.center))),
-                                DataCell(Container(width: 150, alignment: Alignment.center, child: Text(teacher.name, textAlign: TextAlign.center))),
-                                DataCell(Container(width: 120, alignment: Alignment.center, child: Text(teacher.mobile, textAlign: TextAlign.center))),
-                                DataCell(Container(width: 100, alignment: Alignment.center, child: Text(teacher.salary.toString(), textAlign: TextAlign.center))),
+                                DataCell(Container(width: 40, alignment: Alignment.center, child: Text(teacher.id?.toString() ?? '', style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+                                DataCell(Container(width: 100, alignment: Alignment.center, child: Text(teacher.name, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+                                DataCell(Container(width: 85, alignment: Alignment.center, child: Text(teacher.mobile, style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
+                                DataCell(Container(width: 65, alignment: Alignment.center, child: Text(teacher.salary.toString(), style: TextStyle(fontSize: 11), textAlign: TextAlign.center))),
                                 DataCell(Container(
-                                  width: 100,
+                                  width: 65,
                                   alignment: Alignment.center,
                                   child: Text(
                                     (teacher.status == null || teacher.status.trim().isEmpty) ? 'Active' : teacher.status,
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
                                     textAlign: TextAlign.center,
                                   ),
                                 )),
                                 DataCell(Container(
-                                  width: 140,
+                                  width: 90,
                                   alignment: Alignment.center,
                                   child: Text(
-                                    teacher.startingDate != null
-                                        ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!)
-                                        : '-',
+                                    teacher.startingDate != null ? DateFormat('yyyy-MM-dd').format(teacher.startingDate!) : '-',
+                                    style: TextStyle(fontSize: 11),
                                     textAlign: TextAlign.center,
                                   ),
                                 )),
                                 DataCell(Container(
-                                  width: 140,
+                                  width: 90,
                                   alignment: Alignment.center,
                                   child: Text(
-                                    teacher.leavingDate.isNotEmpty && teacher.leavingDate != 'none'
-                                        ? teacher.leavingDate
-                                        : '-',
+                                    teacher.leavingDate.isNotEmpty && teacher.leavingDate != 'none' ? teacher.leavingDate : '-',
+                                    style: TextStyle(fontSize: 11),
                                     textAlign: TextAlign.center,
                                   ),
                                 )),

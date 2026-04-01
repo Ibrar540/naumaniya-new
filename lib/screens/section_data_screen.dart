@@ -409,7 +409,12 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                         )
                       : SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
+                          child: InteractiveViewer(
+                            panEnabled: true,
+                            scaleEnabled: true,
+                            minScale: 0.5,
+                            maxScale: 2.5,
+                            child: ConstrainedBox(
                             constraints: BoxConstraints(
                               minWidth: MediaQuery.of(context).size.width - 50,
                             ),
@@ -418,69 +423,28 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                                 color: Colors.grey.shade300,
                                 width: 1.0,
                               ),
-                              columnSpacing: 20.0,
+                              columnSpacing: 10.0,
+                              headingRowHeight: 36,
+                              dataRowMinHeight: 32,
+                              dataRowMaxHeight: 40,
                               columns: isUrdu
                                   ? [
-                                      DataColumn(
-                                        label: Expanded(child: Text('اعمال')),
-                                      ),
-                                      DataColumn(
-                                        label: Expanded(child: Text('تاریخ')),
-                                      ),
-                                      DataColumn(
-                                        label: Expanded(child: Text('رقم')),
-                                      ),
-                                      DataColumn(
-                                        label: Expanded(child: Text('تفصیل')),
-                                      ),
+                                      DataColumn(label: Expanded(child: Text('اعمال', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Expanded(child: Text('تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Expanded(child: Text('رقم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Expanded(child: Text('تفصیل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
                                     ]
                                   : [
-                                      DataColumn(
-                                        label: Expanded(child: Text('Description')),
-                                      ),
-                                      DataColumn(
-                                        label: Container(
-                                          width: 100,
-                                          child: Text('Amount'),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Container(
-                                          width: 120,
-                                          child: Text('Date'),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Container(
-                                          width: 80,
-                                          child: Text('Actions'),
-                                        ),
-                                      ),
+                                      DataColumn(label: Expanded(child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Container(width: 70, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Container(width: 85, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                      DataColumn(label: Container(width: 60, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
                                     ],
                               rows: _filteredData.map((row) {
                                 final cells = [
-                                  DataCell(
-                                    Container(
-                                      width: 200,
-                                      child: Text(
-                                        row['description'] ?? '',
-                                        softWrap: true,
-                                        maxLines: null,
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      width: 100,
-                                      child: Text(row['amount'].toString()),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      width: 120,
-                                      child: Text(_formatDateOnly(row['date'] ?? '')),
-                                    ),
-                                  ),
+                                  DataCell(Container(width: 150, child: Text(row['description'] ?? '', style: TextStyle(fontSize: 11), softWrap: true, maxLines: 2))),
+                                  DataCell(Container(width: 70, child: Text(row['amount'].toString(), style: TextStyle(fontSize: 11)))),
+                                  DataCell(Container(width: 85, child: Text(_formatDateOnly(row['date'] ?? ''), style: TextStyle(fontSize: 11)))),
                                   DataCell(
                                     PopupMenuButton<String>(
                                       onSelected: (value) async {
@@ -515,12 +479,10 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                                     ),
                                   ),
                                 ];
-
-                                return DataRow(
-                                  cells: isUrdu ? cells.reversed.toList() : cells,
-                                );
+                                return DataRow(cells: isUrdu ? cells.reversed.toList() : cells);
                               }).toList(),
                             ),
+                          ),
                           ),
                         ),
                 ),
