@@ -6,21 +6,21 @@ class NotificationProvider extends ChangeNotifier {
   final AuthService _auth;
   Timer? _pollTimer;
 
-  int _pendingRequestCount = 0;
+  // Start at -1 so first poll sets the baseline without triggering fake "new" notifications
+  int _pendingRequestCount = -1;
   List<Map<String, dynamic>> _inAppNotifications = [];
 
-  int get pendingRequestCount => _pendingRequestCount;
+  int get pendingRequestCount => _pendingRequestCount < 0 ? 0 : _pendingRequestCount;
   List<Map<String, dynamic>> get inAppNotifications => _inAppNotifications;
-  bool get hasUnread => _inAppNotifications.any((n) => n['read'] != true);
+  bool get hasUnread => _pendingRequestCount > 0;
 
-  NotificationProvider(this._auth) {
-    _startPolling();
-  }
+  NotificationProvider(this._auth);
 
-  void _startPolling() {
-    // Poll every 30 seconds when app is open
+  /// Call this after the user has logged in and auth is initialized
+  void startPolling() {
+    _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _poll());
-    _poll(); // immediate first check
+    _poll();
   }
 
   Future<void> _poll() async {
@@ -29,47 +29,22 @@ class NotificationProvider extends ChangeNotifier {
       if (_auth.isAdmin) {
         final reqs = await _auth.getPendingRequests();
         final newCount = reqs.length;
-        if (newCount > _pendingRequestCount && _pendingRequestCount != -1) {
-          // New requests arrived since last poll
-          final diff = newCount - _pendingRequestCount;
-          for (int i = 0; i < diff && i < reqs.length; i++) {
-            _addNotification(
-              title: 'New Admin Request',
-              body: '${reqs[i]['user_name']} requested admin access',
-              type: 'admin_request',
-            );
-          }
-        }
-        _pendingRequestCount = newCount;
-      }
 
-      // Fetch in-app notifications from backend
-      final notifications = await _auth.getNotifications();
-      _inAppNotifications = notifications;
+        // First poll: just set baseline, don't notify
+        if (_pendingRequestCount == -1) {
+          _pendingRequestCount = newCount;
+        } else if (newCount > _pendingRequestCount) {
+          // Genuinely new requests arrived
+          _pendingRequestCount = newCount;
+        } else {
+          _pendingRequestCount = newCount;
+        }
+      }
       notifyListeners();
     } catch (_) {}
   }
 
-  void _addNotification(
-      {required String title, required String body, required String type}) {
-    _inAppNotifications.insert(0, {
-      'title': title,
-      'body': body,
-      'type': type,
-      'read': false,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-    notifyListeners();
-  }
-
   Future<void> refresh() => _poll();
-
-  void markAllRead() {
-    for (final n in _inAppNotifications) {
-      n['read'] = true;
-    }
-    notifyListeners();
-  }
 
   @override
   void dispose() {

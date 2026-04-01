@@ -10,6 +10,11 @@ class AuthService {
   static const String userKey = 'user_data';
   static const String fingerprintKey = 'fingerprint_token';
 
+  // Singleton
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
+
   String? _token;
   User? _currentUser;
 

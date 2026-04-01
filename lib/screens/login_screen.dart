@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../providers/language_provider.dart';
+import '../providers/notification_provider.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
 
@@ -46,6 +47,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (response.success) {
+      // Start notification polling now that user is authenticated
+      if (context.mounted) {
+        context.read<NotificationProvider>().startPolling();
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
