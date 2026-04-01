@@ -6,6 +6,7 @@ import 'madrasa_budget_screen.dart';
 import 'students_screen.dart';
 import 'settings_screen.dart';
 import 'notifications_screen.dart';
+import '../providers/notification_provider.dart';
 import 'teachers_screen.dart';
 import 'budget_enter_data_screen.dart';
 import 'class_management_screen.dart';
@@ -233,7 +234,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.notifications, color: Colors.white),
+                              icon: Consumer<NotificationProvider>(
+                                builder: (context, notifProvider, _) {
+                                  final count = notifProvider.pendingRequestCount;
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      const Icon(Icons.notifications, color: Colors.white),
+                                      if (count > 0)
+                                        Positioned(
+                                          right: -4,
+                                          top: -4,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(3),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.red,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Text(
+                                              count > 9 ? '9+' : '$count',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
                               onPressed: () {
                                 Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen()));
                               },

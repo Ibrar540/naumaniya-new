@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'services/database_service.dart';
-import 'services/fcm_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'providers/language_provider.dart';
@@ -15,6 +13,8 @@ import 'providers/teacher_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:workmanager/workmanager.dart';
+import 'providers/notification_provider.dart';
+import 'services/auth_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -35,12 +35,6 @@ void callbackDispatcher() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  await Firebase.initializeApp();
-
-  // Initialize FCM (push notifications)
-  await FCMService().initialize();
 
   // Initialize Neon Database
   try {
@@ -77,8 +71,12 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AutoSyncProvider()),
-        ChangeNotifierProvider(create: (_) => BudgetProvider()), // <-- Added
+        ChangeNotifierProvider(create: (_) => BudgetProvider()),
         ChangeNotifierProvider(create: (_) => TeacherProvider()),
+        ChangeNotifierProxyProvider0<NotificationProvider>(
+          create: (_) => NotificationProvider(AuthService()),
+          update: (_, prev) => prev ?? NotificationProvider(AuthService()),
+        ),
       ],
       child: MyApp(),
     ),

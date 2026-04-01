@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
-import 'fcm_service.dart';
 
 class AuthService {
   static const String baseUrl = 'https://naumaniya-new.vercel.app';
@@ -102,8 +101,6 @@ class AuthService {
 
         if (authResponse.success && authResponse.token != null) {
           await _saveSession(authResponse.token!, authResponse.user!);
-          // Register FCM token so this device receives push notifications
-          FCMService().registerTokenWithBackend(authResponse.token!);
         }
 
         return authResponse;
