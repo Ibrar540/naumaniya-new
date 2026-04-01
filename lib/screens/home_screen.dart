@@ -391,48 +391,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             BoxShadow(color: color.withOpacity(0.10), blurRadius: 10, offset: Offset(0, 4)),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color.withOpacity(0.28), color.withOpacity(0.10)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final iconSize = (constraints.maxHeight * 0.28).clamp(18.0, 28.0);
+            final fontSize = (constraints.maxHeight * 0.11).clamp(9.0, 13.0);
+            final subFontSize = (constraints.maxHeight * 0.09).clamp(8.0, 11.0);
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(constraints.maxHeight * 0.08),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [color.withOpacity(0.28), color.withOpacity(0.10)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(m['icon'] as IconData, size: iconSize, color: color),
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(m['icon'] as IconData, size: 26, color: color),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                m['title'] as String,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                SizedBox(height: constraints.maxHeight * 0.05),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    m['title'] as String,
+                    style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700, color: Colors.black87),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                m['subtitle'] as String,
-                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+                SizedBox(height: constraints.maxHeight * 0.03),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    m['subtitle'] as String,
+                    style: TextStyle(fontSize: subFontSize, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
