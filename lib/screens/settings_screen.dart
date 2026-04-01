@@ -44,11 +44,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadAdminData() async {
     final users = await _auth.getAllUsers();
-    final reqs = await _auth.getPendingRequests();
+    final adminReqs = await _auth.getPendingRequests();       // admin_requests table
+    final accessReqs = await _auth.getAccessRequests();       // access_requests table
     final history = await _auth.getHistory();
+
+    // Merge both request types with a 'request_type' tag
+    final merged = [
+      ...adminReqs.map((r) => {...r, 'request_type': 'admin'}),
+      ...accessReqs.map((r) => {...r, 'request_type': 'access'}),
+    ];
+
     setState(() {
       _users = users.map((u) => u.toJson()).toList();
-      _requests = reqs;
+      _requests = merged;
       _history = history;
     });
   }
@@ -376,31 +384,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           ..._requests.map((r) {
+            final isAdminReq = r['request_type'] == 'admin';
+            final subtitle = isAdminReq
+                ? (r['reason'] ?? '')
+                : '${r['type'] ?? ''} access${r['reason'] != null && r['reason'].toString().isNotEmpty ? ' — ${r['reason']}' : ''}';
             return Card(
               margin: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.orange.withOpacity(0.15),
-                  child: Icon(Icons.person, color: Colors.orange),
+                  backgroundColor: isAdminReq
+                      ? Colors.red.withOpacity(0.12)
+                      : Colors.orange.withOpacity(0.15),
+                  child: Icon(
+                    isAdminReq ? Icons.admin_panel_settings : Icons.lock_open,
+                    color: isAdminReq ? Colors.red : Colors.orange,
+                  ),
                 ),
-                title: Text(r['user_name'] ?? r['name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(r['reason'] ?? ''),
+                title: Text(r['user_name'] ?? r['name'] ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(subtitle),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton(
                       onPressed: () async {
-                        await _auth.reviewAdminRequest(r['id'], true);
+                        if (isAdminReq) {
+                          await _auth.reviewAdminRequest(r['id'], true);
+                        } else {
+                          await _auth.reviewAccessRequest(r['id'], true);
+                        }
                         _loadAdminData();
                       },
-                      child: Text(isUrdu ? 'منظور' : 'Approve', style: TextStyle(color: Colors.green)),
+                      child: Text(isUrdu ? 'منظور' : 'Approve',
+                          style: TextStyle(color: Colors.green)),
                     ),
                     TextButton(
                       onPressed: () async {
-                        await _auth.reviewAdminRequest(r['id'], false);
+                        if (isAdminReq) {
+                          await _auth.reviewAdminRequest(r['id'], false);
+                        } else {
+                          await _auth.reviewAccessRequest(r['id'], false);
+                        }
                         _loadAdminData();
                       },
-                      child: Text(isUrdu ? 'رد' : 'Reject', style: TextStyle(color: Colors.red)),
+                      child: Text(isUrdu ? 'رد' : 'Reject',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),

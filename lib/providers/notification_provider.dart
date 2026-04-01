@@ -27,14 +27,10 @@ class NotificationProvider extends ChangeNotifier {
     if (!_auth.isAuthenticated) return;
     try {
       if (_auth.isAdmin) {
-        final reqs = await _auth.getPendingRequests();
-        final newCount = reqs.length;
-
-        // First poll: just set baseline, don't notify
+        final adminReqs = await _auth.getPendingRequests();
+        final accessReqs = await _auth.getAccessRequests();
+        final newCount = adminReqs.length + accessReqs.length;
         if (_pendingRequestCount == -1) {
-          _pendingRequestCount = newCount;
-        } else if (newCount > _pendingRequestCount) {
-          // Genuinely new requests arrived
           _pendingRequestCount = newCount;
         } else {
           _pendingRequestCount = newCount;
