@@ -46,6 +46,11 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> refresh() => _poll();
 
+  void markAllRead() {
+    // No-op for now — badge clears when requests are reviewed
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _pollTimer?.cancel();
