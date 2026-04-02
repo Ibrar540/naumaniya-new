@@ -8,6 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 const db = require('./config/db');
+const { runMigrations } = require('./config/migrate');
 const aiEngine = require('./services/aiEngine');
 const queryBuilder = require('./services/queryBuilder');
 const responseFormatter = require('./services/responseFormatter');
@@ -74,6 +75,9 @@ app.use((req, res, next) => {
 
 // Auth routes
 app.use('/auth', authRoutes);
+
+// Run DB migrations on startup (creates missing tables)
+runMigrations();
 
 /**
  * Health check endpoint

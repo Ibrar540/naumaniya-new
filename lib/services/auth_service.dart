@@ -240,7 +240,10 @@ class AuthService {
   /// Create access request (full | readonly) optionally scoped to modules
   Future<bool> createAccessRequest(String type, List<String>? modules, String? reason) async {
     try {
-      if (_token == null) return false;
+      if (_token == null) {
+        debugPrint('❌ createAccessRequest: no token');
+        return false;
+      }
 
       final response = await http.post(
         Uri.parse('$baseUrl/auth/request-access'),
@@ -256,6 +259,7 @@ class AuthService {
       );
 
       final data = jsonDecode(response.body);
+      debugPrint('📋 createAccessRequest response: ${response.statusCode} ${response.body}');
       return data['success'] == true;
     } catch (e) {
       debugPrint('❌ Create access request error: $e');

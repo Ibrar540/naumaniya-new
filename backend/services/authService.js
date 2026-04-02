@@ -398,7 +398,7 @@ class AuthService {
 
       return { success: true, message: 'Access request submitted' };
     } catch (error) {
-      console.error('Create access request error:', error);
+      console.error('Create access request error:', error.message || error);
       throw error;
     }
   }

@@ -26,7 +26,13 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
 
   Future<void> _sendRequest() async {
     setState(() => _isLoading = true);
-    final ok = await _auth.createAccessRequest(_type, null, _reasonController.text.trim());
+    String? errorMsg;
+    bool ok = false;
+    try {
+      ok = await _auth.createAccessRequest(_type, null, _reasonController.text.trim());
+    } catch (e) {
+      errorMsg = e.toString();
+    }
     setState(() => _isLoading = false);
 
     if (!mounted) return;
@@ -66,7 +72,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isUrdu ? 'درخواست ناکام ہوئی' : 'Request failed. Please try again.')),
+        SnackBar(content: Text(errorMsg ?? (isUrdu ? 'درخواست ناکام ہوئی' : 'Request failed. Please try again.'))),
       );
     }
   }
