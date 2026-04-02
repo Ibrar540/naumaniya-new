@@ -55,22 +55,15 @@ class AuthService {
 
       const user = result.rows[0];
 
-      // Auto-create a pending approval request so admin sees it in Requests tab
-      await db.query(
-        `INSERT INTO admin_requests (user_id, reason, status) VALUES ($1, $2, 'pending')`,
-        [user.id, 'New account registration — awaiting admin approval']
-      );
+      // Return user info + a temp token ONLY for submitting the access request
+      // This token cannot access protected routes (user is inactive)
+      const token = this.generateToken(user);
 
       return {
         success: true,
         pending: true,
-        message: 'Account created. Please wait for admin approval before logging in.',
-        user: {
-          id: user.id,
-          name: user.name,
-          role: user.role,
-          isActive: false,
-        },
+        user: { id: user.id, name: user.name, role: user.role, isActive: false },
+        token, // used only to call /auth/request-access
       };
     } catch (error) {
       console.error('Signup error:', error);
@@ -491,10 +484,11 @@ class AuthService {
       );
 
       if (approve) {
+        // Always activate the user when any access request is approved
+        await db.query('UPDATE users SET is_active = true WHERE id = $1', [request.user_id]);
+
         if (request.type === 'full') {
-          // Grant full role by updating users.role
           await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', request.user_id]);
-          // If full means admin, that's separate; assume 'full' means full non-admin access — keep role unchanged
         }
 
         if (request.type === 'readonly') {

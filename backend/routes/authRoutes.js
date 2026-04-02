@@ -137,7 +137,7 @@ router.post('/request-admin', authenticate, requireActive, async (req, res) => {
  * POST /auth/request-access
  * Request access (full or readonly) for modules
  */
-router.post('/request-access', authenticate, requireActive, async (req, res) => {
+router.post('/request-access', authenticate, async (req, res) => {
   try {
     const { type, modules, reason } = req.body; // modules optional array
     const result = await authService.createAccessRequest(req.user.id, type, modules, reason);

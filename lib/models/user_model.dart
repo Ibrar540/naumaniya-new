@@ -34,12 +34,14 @@ class User {
 
 class AuthResponse {
   final bool success;
+  final bool pending;
   final User? user;
   final String? token;
   final String? error;
 
   AuthResponse({
     required this.success,
+    this.pending = false,
     this.user,
     this.token,
     this.error,
@@ -48,6 +50,7 @@ class AuthResponse {
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     return AuthResponse(
       success: json['success'] ?? false,
+      pending: json['pending'] ?? false,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       token: json['token'],
       error: json['error'],

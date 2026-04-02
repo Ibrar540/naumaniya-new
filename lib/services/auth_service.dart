@@ -542,6 +542,14 @@ class AuthService {
     await prefs.setString(userKey, jsonEncode(user.toJson()));
   }
 
+  /// Save temp token after signup so user can submit access request
+  /// Does NOT mark the session as fully authenticated
+  Future<void> savePendingSession(String token, User user) async {
+    _token = token;
+    _currentUser = user;
+    // Don't persist to SharedPreferences — session is only valid for submitting request
+  }
+
   /// Private: Clear session
   Future<void> _clearSession() async {
     _token = null;
