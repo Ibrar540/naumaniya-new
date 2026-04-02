@@ -77,7 +77,11 @@ app.use((req, res, next) => {
 app.use('/auth', authRoutes);
 
 // Run DB migrations on startup (creates missing tables)
-runMigrations();
+runMigrations().then(() => {
+  console.log('✅ Migrations done');
+}).catch(err => {
+  console.error('❌ Migration failed:', err.message);
+});
 
 /**
  * Health check endpoint
@@ -95,6 +99,18 @@ app.get('/health', (req, res) => {
     status: 'healthy',
     timestamp: new Date().toISOString()
   });
+});
+
+/**
+ * Manual migration trigger (run once if tables are missing)
+ */
+app.get('/run-migrations', async (req, res) => {
+  try {
+    await runMigrations();
+    res.json({ success: true, message: 'Migrations complete' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 /**
