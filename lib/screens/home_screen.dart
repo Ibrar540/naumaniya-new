@@ -221,59 +221,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         padding: EdgeInsets.all(8),
                         constraints: BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
-                        // Notifications and Settings icons below language switch
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Consumer<NotificationProvider>(
-                                builder: (context, notifProvider, _) {
-                                  final count = notifProvider.pendingRequestCount;
-                                  return Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      const Icon(Icons.notifications, color: Colors.white),
-                                      if (count > 0)
-                                        Positioned(
-                                          right: -4,
-                                          top: -4,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(3),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Text(
-                                              count > 9 ? '9+' : '$count',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
+                        // Settings icon
+                        IconButton(
+                          icon: Icon(Icons.settings, color: Colors.white),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen()));
+                          },
+                          tooltip: languageProvider.getText('settings'),
+                          padding: EdgeInsets.all(8),
+                          constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                        ),
+                        // Bell icon below settings
+                        IconButton(
+                          icon: Consumer<NotificationProvider>(
+                            builder: (context, notifProvider, _) {
+                              final count = notifProvider.pendingRequestCount;
+                              return Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  const Icon(Icons.notifications, color: Colors.white),
+                                  if (count > 0)
+                                    Positioned(
+                                      right: -4,
+                                      top: -4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Text(
+                                          count > 9 ? '9+' : '$count',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen()));
-                              },
-                              tooltip: languageProvider.getText('notifications') ?? 'Notifications',
-                              padding: EdgeInsets.all(8),
-                              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.settings, color: Colors.white),
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen()));
-                              },
-                              tooltip: languageProvider.getText('settings'),
-                              padding: EdgeInsets.all(8),
-                              constraints: BoxConstraints(minWidth: 40, minHeight: 40),
-                            ),
-                          ],
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen()));
+                          },
+                          tooltip: languageProvider.getText('notifications') ?? 'Notifications',
+                          padding: EdgeInsets.all(8),
+                          constraints: BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
                       ],
                     ),
