@@ -87,7 +87,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         title: Text(isUrdu ? 'رسائی کی درخواست' : 'Request Access'),
         automaticallyImplyLeading: !widget.fromSignup,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
