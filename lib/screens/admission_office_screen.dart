@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admission_form_screen.dart';
 import 'admission_view_screen.dart';
 import 'home_screen.dart';
+import '../utils/access_control.dart';
 
 class AdmissionOfficeScreen extends StatelessWidget {
   const AdmissionOfficeScreen({super.key});
@@ -61,12 +62,14 @@ class AdmissionOfficeScreen extends StatelessWidget {
                   title: 'Enter Data',
                   subtitle: 'Add Admission Record',
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AdmissionFormScreen(),
-                      ),
-                    );
+                    runIfAdmin(context, () async {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdmissionFormScreen(),
+                        ),
+                      );
+                    });
                   },
                 ),
                 SizedBox(height: 24),

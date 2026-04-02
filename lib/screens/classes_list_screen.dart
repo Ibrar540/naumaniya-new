@@ -664,6 +664,9 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
                   case 'graduate':
                     await runIfAdmin(context, () async { await _markClassAsGraduate(classModel); });
                     break;
+                  case 'shift':
+                    await runIfAdmin(context, () async { await _shiftClass(classModel); });
+                    break;
                   case 'struck_off':
                     await runIfAdmin(context, () async { await _markClassAsStruckOff(classModel); });
                     break;
@@ -701,6 +704,16 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
                   ),
                 ),
                 PopupMenuItem(
+                  value: 'shift',
+                  child: Row(
+                    children: [
+                      Icon(Icons.swap_horiz, color: Colors.purple),
+                      SizedBox(width: 8),
+                      Text(languageProvider.isUrdu ? 'کلاس منتقل کریں' : 'Shift Class'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
                   value: 'struck_off',
                   child: Row(
                     children: [
@@ -725,6 +738,84 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _shiftClass(ClassModel classModel) async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    String? selectedClassName;
+
+    // Build list of other classes as choices
+    final choices = _classes.where((c) => c.id != classModel.id).toList();
+    if (choices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(languageProvider.isUrdu ? 'کوئی دوسری کلاس موجود نہیں' : 'No other classes available')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: Text(languageProvider.isUrdu ? 'کلاس منتقل کریں' : 'Shift Class'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(languageProvider.isUrdu
+                    ? 'اس پیغام کے بعد وہ کلاس منتخب کریں جہاں طلباء منتقل ہوں گے'
+                    : 'Select class where students should be shifted'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.maxFinite,
+                  height: 200,
+                  child: ListView.builder(
+                    itemCount: choices.length,
+                    itemBuilder: (context, idx) {
+                      final c = choices[idx];
+                      return RadioListTile<String>(
+                        title: Text(c.name),
+                        value: c.name,
+                        groupValue: selectedClassName,
+                        onChanged: (v) => setState(() => selectedClassName = v),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: Text(languageProvider.getText('cancel'))),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: Text(languageProvider.isUrdu ? 'منتقل کریں' : 'Shift')),
+            ],
+          );
+        });
+      },
+    );
+
+    if (confirmed != true) return;
+    if (selectedClassName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(languageProvider.isUrdu ? 'براہ کرم ایک کلاس منتخب کریں' : 'Please select a class')),
+      );
+      return;
+    }
+
+    try {
+      final allStudents = await DatabaseService.getAllStudents();
+      final classStudents = allStudents.where((data) => (data['class']?.toString().trim() ?? '') == classModel.name).toList();
+      for (final student in classStudents) {
+        await DatabaseService.updateAdmission(student['id'].toString(), {'class': selectedClassName});
+      }
+      await _loadClasses();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(languageProvider.isUrdu ? '${classStudents.length} طلباء منتقل ہوئے' : '${classStudents.length} students shifted'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(languageProvider.isUrdu ? 'منتقل کرنے میں خرابی' : 'Error shifting students'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _downloadPdf() async {

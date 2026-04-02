@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
+import '../services/database_service.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart' as pdf_lib;
+import '../utils/file_utils.dart';
+import 'package:excel/excel.dart' as excel_lib;
 import '../models/class_model.dart';
 import 'student_enter_data_screen.dart';
 import 'students_screen.dart';
@@ -58,6 +63,27 @@ class _ClassStudentsScreenState extends State<ClassStudentsScreen> {
               languageProvider.toggleLanguage();
             },
             tooltip: languageProvider.getText('switch_language'),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.arrow_downward),
+            tooltip: 'Download',
+            onSelected: (value) async {
+              if (value == 'pdf') {
+                await _downloadPdf();
+              } else if (value == 'excel') {
+                await _downloadExcel();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'pdf',
+                child: Row(children: [Icon(Icons.picture_as_pdf, color: Colors.red), SizedBox(width: 8), Text('PDF')]),
+              ),
+              PopupMenuItem(
+                value: 'excel',
+                child: Row(children: [Icon(Icons.grid_on, color: Colors.green), SizedBox(width: 8), Text('Excel')]),
+              ),
+            ],
           ),
         ],
       ),
@@ -191,5 +217,77 @@ class _ClassStudentsScreenState extends State<ClassStudentsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _downloadPdf() async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    try {
+      final allStudents = await DatabaseService.getAllStudents();
+      final students = allStudents.where((data) {
+        final studentClass = data['class']?.toString().trim() ?? '';
+        final status = (data['status'] ?? '').toString().trim().toLowerCase();
+        final notExcluded = status != 'struck off' && status != 'graduate';
+        return studentClass == widget.classModel.name && notExcluded;
+      }).toList();
+
+      final pdf = pw.Document();
+      pdf.addPage(
+        pw.Page(
+          pageFormat: pdf_lib.PdfPageFormat.a4,
+          build: (pw.Context ctx) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('${widget.classModel.name} - Students', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 12),
+                pw.Table(border: pw.TableBorder.all(), children: [
+                  pw.TableRow(children: [pw.Text('ID'), pw.Text('Name'), pw.Text('Father'), pw.Text('Mobile'), pw.Text('Fee')]),
+                  ...students.map((s) => pw.TableRow(children: [
+                    pw.Text(s['id']?.toString() ?? ''),
+                    pw.Text(s['name'] ?? ''),
+                    pw.Text(s['father_name'] ?? ''),
+                    pw.Text(s['mobile'] ?? ''),
+                    pw.Text(s['fee']?.toString() ?? ''),
+                  ])),
+                ])
+              ],
+            );
+          },
+        ),
+      );
+      final bytes = await pdf.save();
+      await FileUtils.downloadPdf(bytes, '${widget.classModel.name}_students.pdf');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error exporting PDF: $e')));
+    }
+  }
+
+  Future<void> _downloadExcel() async {
+    try {
+      final allStudents = await DatabaseService.getAllStudents();
+      final students = allStudents.where((data) {
+        final studentClass = data['class']?.toString().trim() ?? '';
+        final status = (data['status'] ?? '').toString().trim().toLowerCase();
+        final notExcluded = status != 'struck off' && status != 'graduate';
+        return studentClass == widget.classModel.name && notExcluded;
+      }).toList();
+
+      final excel = excel_lib.Excel.createExcel();
+      final sheet = excel['Students'];
+      sheet.appendRow(['ID', 'Name', 'Father', 'Mobile', 'Fee']);
+      for (final s in students) {
+        sheet.appendRow([
+          s['id']?.toString() ?? '',
+          s['name'] ?? '',
+          s['father_name'] ?? '',
+          s['mobile'] ?? '',
+          s['fee']?.toString() ?? '',
+        ]);
+      }
+      final bytes = excel.encode()!;
+      await FileUtils.downloadExcel(bytes, '${widget.classModel.name}_students.xlsx');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error exporting Excel: $e')));
+    }
   }
 } 

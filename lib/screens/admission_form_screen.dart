@@ -10,6 +10,7 @@ import '../services/database_service.dart';
 import '../services/cloudinary_service.dart';
 import '../providers/language_provider.dart';
 import '../widgets/voice_input_button.dart';
+import '../utils/access_control.dart';
 import '../screens/home_screen.dart';
 
 class AdmissionFormScreen extends StatefulWidget {
@@ -574,7 +575,13 @@ class AdmissionFormScreenState extends State<AdmissionFormScreen> {
                                 width: double.infinity,
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _saveAdmission,
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () {
+                                          runIfAdmin(context, () async {
+                                            await _saveAdmission();
+                                          });
+                                        },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF1976D2),
                                     foregroundColor: Colors.white,
@@ -583,27 +590,27 @@ class AdmissionFormScreenState extends State<AdmissionFormScreen> {
                                             BorderRadius.circular(15)),
                                     elevation: 8,
                                   ),
-                                  child: _isLoading
-                                      ? const CircularProgressIndicator(
-                                          color: Colors.white)
-                                      : Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(widget.isEdit
-                                                ? Icons.save
-                                                : Icons.add),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              widget.isEdit
-                                                  ? (isUrdu ? 'داخلہ اپ ڈیٹ کریں' : 'Update Admission')
-                                                  : (isUrdu ? 'داخلہ محفوظ کریں' : 'Save Admission'),
-                                              style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold),
+                                      child: _isLoading
+                                          ? const CircularProgressIndicator(
+                                              color: Colors.white)
+                                          : Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(widget.isEdit
+                                                    ? Icons.save
+                                                    : Icons.add),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  widget.isEdit
+                                                      ? (isUrdu ? 'داخلہ اپ ڈیٹ کریں' : 'Update Admission')
+                                                      : (isUrdu ? 'داخلہ محفوظ کریں' : 'Save Admission'),
+                                                  style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
                                 ),
                               ),
                             ],
@@ -619,8 +626,8 @@ class AdmissionFormScreenState extends State<AdmissionFormScreen> {
         ],
       ),
     );
-      },
-    );
+          },
+        );
   }
 
   Widget _buildTextField(
