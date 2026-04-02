@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../providers/language_provider.dart';
-import 'home_screen.dart';
-import 'request_access_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -49,9 +47,31 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = false);
 
     if (response.success) {
-      // After signup, lead user to RequestAccessScreen to choose access requests
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RequestAccessScreen()),
+      final isUrdu = Provider.of<LanguageProvider>(context, listen: false).isUrdu;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: Row(children: [
+            Icon(Icons.hourglass_top, color: Colors.orange),
+            SizedBox(width: 8),
+            Text(isUrdu ? 'درخواست جمع ہو گئی' : 'Request Submitted'),
+          ]),
+          content: Text(
+            isUrdu
+                ? 'آپ کا اکاؤنٹ بنا دیا گیا ہے۔ ایڈمن کی منظوری کے بعد آپ لاگ ان کر سکیں گے۔'
+                : 'Your account has been created. You can log in after an admin approves your request.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // back to login
+              },
+              child: Text(isUrdu ? 'ٹھیک ہے' : 'OK'),
+            ),
+          ],
+        ),
       );
     } else {
       setState(() {

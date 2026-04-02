@@ -45,28 +45,32 @@ class AuthService {
       // Hash password
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-      // Create user
+      // Create user with is_active = false — requires admin approval before login
       const result = await db.query(
         `INSERT INTO users (name, password_hash, role, is_active) 
-         VALUES ($1, $2, 'user', true) 
+         VALUES ($1, $2, 'user', false) 
          RETURNING id, name, role, is_active, created_at`,
         [name, passwordHash]
       );
 
       const user = result.rows[0];
 
-      // Generate token
-      const token = this.generateToken(user);
+      // Auto-create a pending approval request so admin sees it in Requests tab
+      await db.query(
+        `INSERT INTO admin_requests (user_id, reason, status) VALUES ($1, $2, 'pending')`,
+        [user.id, 'New account registration — awaiting admin approval']
+      );
 
       return {
         success: true,
+        pending: true,
+        message: 'Account created. Please wait for admin approval before logging in.',
         user: {
           id: user.id,
           name: user.name,
           role: user.role,
-          isActive: user.is_active,
+          isActive: false,
         },
-        token,
       };
     } catch (error) {
       console.error('Signup error:', error);
@@ -98,10 +102,17 @@ class AuthService {
 
       const user = result.rows[0];
 
-      // Check if user is active
+      // Check if user is active (approved by admin)
       if (!user.is_active) {
-        console.warn(`⚠️ Login failed - account deactivated for user: ${name}`);
-        return { success: false, error: 'Account is deactivated' };
+        // Check if there's a pending approval request
+        const pendingReq = await db.query(
+          `SELECT id FROM admin_requests WHERE user_id = $1 AND status = 'pending'`,
+          [user.id]
+        );
+        if (pendingReq.rows.length > 0) {
+          return { success: false, error: 'Your account is pending admin approval. Please wait.' };
+        }
+        return { success: false, error: 'Account is deactivated. Contact admin.' };
       }
 
       // Verify password
@@ -569,22 +580,28 @@ class AuthService {
       );
 
       if (approve) {
-        // Get user_id from request
+        // Get user_id and reason from request
         const request = await db.query(
-          'SELECT user_id FROM admin_requests WHERE id = $1',
+          'SELECT user_id, reason FROM admin_requests WHERE id = $1',
           [requestId]
         );
 
-          if (request.rows.length > 0) {
-            // Promote user to admin
-            await db.query(
-              'UPDATE users SET role = $1 WHERE id = $2',
-              ['admin', request.rows[0].user_id]
-            );
+        if (request.rows.length > 0) {
+          const userId = request.rows[0].user_id;
+          const reason = request.rows[0].reason || '';
 
-            // Log audit
-            await this.logAudit(adminId, 'approve_admin_request', request.rows[0].user_id, `Approved admin request id=${requestId}`);
+          // Always activate the user on approval
+          await db.query('UPDATE users SET is_active = true WHERE id = $1', [userId]);
+
+          // If this is a new account approval (not an admin promotion), keep role as 'user'
+          // If the reason indicates admin promotion, promote to admin
+          const isAdminPromotion = !reason.includes('New account registration');
+          if (isAdminPromotion) {
+            await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', userId]);
           }
+
+          await this.logAudit(adminId, 'approve_admin_request', userId, `Approved request id=${requestId}`);
+        }
       }
 
       return { success: true, message: `Request ${status}` };
