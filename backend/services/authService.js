@@ -773,6 +773,40 @@ class AuthService {
   }
 
   /**
+   * Change password for current user after verifying current password
+   */
+  async changePassword(userId, currentPassword, newPassword) {
+    try {
+      if (!userId) throw new Error('User id is required');
+      if (!currentPassword || !newPassword) throw new Error('Current and new password required');
+      if (newPassword.length < 6) throw new Error('Password must be at least 6 characters');
+
+      const r = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+      if (r.rows.length === 0) throw new Error('User not found');
+
+      const currentHash = r.rows[0].password_hash;
+      const ok = await bcrypt.compare(currentPassword, currentHash);
+      if (!ok) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+
+      const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
+
+      try {
+        await this.logAudit(userId, 'change_password', userId, `Changed own password`);
+      } catch (e) {
+        console.error('Audit log failed:', e);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get audit history for last N days (default 30)
    */
   async getAuditHistory(days = 30) {

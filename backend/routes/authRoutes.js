@@ -273,6 +273,16 @@ router.get('/admin/users', authenticate, requireActive, requireAdmin, async (req
  * PUT /auth/profile
  * Update current user's profile (name/password)
  */
+router.post('/change-password', authenticate, requireActive, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const result = await authService.changePassword(req.user.id, currentPassword, newPassword);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 router.put('/profile', authenticate, requireActive, async (req, res) => {
   try {
     const { name, password } = req.body;

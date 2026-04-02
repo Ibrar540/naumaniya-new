@@ -19,7 +19,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Profile fields
   final _nameController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _savingProfile = false;
 
   List<Map<String, dynamic>> _users = [];
@@ -65,10 +64,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _saveProfile() async {
     setState(() => _savingProfile = true);
-    final ok = await _auth.updateProfile(_nameController.text.trim(), _passwordController.text.trim().isEmpty ? null : _passwordController.text.trim());
+    final ok = await _auth.updateProfile(_nameController.text.trim(), null);
     setState(() => _savingProfile = false);
     final snack = ok ? 'Profile updated' : 'Failed to update profile';
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(snack)));
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final isUrdu = languageProvider.isUrdu;
+
+    final currentController = TextEditingController();
+    final newController = TextEditingController();
+    final confirmController = TextEditingController();
+
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(isUrdu ? 'پاس ورڈ تبدیل کریں' : 'Change Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: currentController,
+                obscureText: true,
+                decoration: InputDecoration(labelText: isUrdu ? 'موجودہ پاس ورڈ' : 'Current password'),
+              ),
+              TextField(
+                controller: newController,
+                obscureText: true,
+                decoration: InputDecoration(labelText: isUrdu ? 'نیا پاس ورڈ' : 'New password'),
+              ),
+              TextField(
+                controller: confirmController,
+                obscureText: true,
+                decoration: InputDecoration(labelText: isUrdu ? 'نیا پاس ورڈ دوبارہ' : 'Confirm new password'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isUrdu ? 'منسوخ' : 'Cancel')),
+            TextButton(
+              onPressed: () async {
+                final current = currentController.text.trim();
+                final n = newController.text.trim();
+                final c = confirmController.text.trim();
+                if (n.isEmpty || current.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isUrdu ? 'تمام فیلڈز پُر کریں' : 'Please fill all fields')));
+                  return;
+                }
+                if (n.length < 6) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isUrdu ? 'پاس ورڈ کم از کم 6 حروف' : 'Password must be at least 6 characters')));
+                  return;
+                }
+                if (n != c) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isUrdu ? 'پاس ورڈ میل نہیں کھاتے' : 'Passwords do not match')));
+                  return;
+                }
+
+                Navigator.of(ctx).pop(true);
+              },
+              child: Text(isUrdu ? 'تبدیل کریں' : 'Change'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (changed == true) {
+      final current = currentController.text.trim();
+      final n = newController.text.trim();
+      final ok = await _auth.changePassword(current, n);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? (isUrdu ? 'پاس ورڈ تبدیل ہو گیا' : 'Password changed') : (isUrdu ? 'پاس ورڈ تبدیل ناکام' : 'Password change failed'))));
+    }
   }
 
   Widget _buildProfileTab() {
@@ -84,15 +153,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: InputDecoration(labelText: isUrdu ? 'نام' : 'Name'),
           ),
           SizedBox(height: 12),
-          TextFormField(
-            controller: _passwordController,
-            obscureText: true,
-            decoration: InputDecoration(labelText: isUrdu ? 'نیا پاس ورڈ' : 'New Password'),
-          ),
-          SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _savingProfile ? null : _saveProfile,
-            child: _savingProfile ? CircularProgressIndicator() : Text(isUrdu ? 'محفوظ کریں' : 'Save Profile'),
+          SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _showChangePasswordDialog,
+              child: Text(isUrdu ? 'پاس ورڈ تبدیل کریں' : 'Change Password'),
+            ),
           ),
           SizedBox(height: 12),
           if (!_isAdmin)

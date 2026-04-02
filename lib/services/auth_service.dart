@@ -480,6 +480,25 @@ class AuthService {
     }
   }
 
+  /// Change password (verify current password on server)
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    try {
+      if (_token == null) return false;
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: getAuthHeaders(),
+        body: jsonEncode({ 'currentPassword': currentPassword, 'newPassword': newPassword }),
+      );
+
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Change password error: $e');
+      return false;
+    }
+  }
+
   /// Get admin audit history (last 30 days)
   Future<List<Map<String, dynamic>>> getHistory() async {
     try {
@@ -614,11 +633,14 @@ class AuthService {
   }
 
   /// Save temp token after signup so user can submit access request
-  /// Does NOT mark the session as fully authenticated
+  /// Save temp token after signup so user can submit access request
   Future<void> savePendingSession(String token, User user) async {
     _token = token;
     _currentUser = user;
-    // Don't persist to SharedPreferences — session is only valid for submitting request
+    // Persist so it survives widget rebuilds and initialize() calls
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(tokenKey, token);
+    await prefs.setString(userKey, jsonEncode(user.toJson()));
   }
 
   /// Private: Clear session

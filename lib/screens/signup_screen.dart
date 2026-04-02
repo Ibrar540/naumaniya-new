@@ -48,9 +48,8 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = false);
 
     if (response.success) {
-      // Save the temp token so RequestAccessScreen can call /auth/request-access
+      // Save the temp token so RequestAccessScreen can call submit-pending-request
       if (response.token != null) {
-        final authService = AuthService();
         await authService.savePendingSession(response.token!, response.user!);
       }
       if (!mounted) return;

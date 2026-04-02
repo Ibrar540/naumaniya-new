@@ -21,7 +21,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
   @override
   void initState() {
     super.initState();
-    _auth.initialize();
+    // Don't call initialize() here — it would overwrite the pending session token
   }
 
   Future<void> _sendRequest() async {
