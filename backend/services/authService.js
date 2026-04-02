@@ -19,54 +19,128 @@ class AuthService {
     });
   }
   /**
-   * Register a new user
+   * Register — saves to pending_users only, NOT users table
    */
   async signup(name, password) {
     try {
-      // Validate input
-      if (!name || !password) {
-        throw new Error('Name and password are required');
-      }
+      if (!name || !password) throw new Error('Name and password are required');
+      if (password.length < 6) throw new Error('Password must be at least 6 characters');
 
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
-      }
+      // Check both tables for name conflict
+      const existingUser = await db.query('SELECT id FROM users WHERE name = $1', [name]);
+      if (existingUser.rows.length > 0) throw new Error('Username already taken');
 
-      // Check if user already exists
-      const existingUser = await db.query(
-        'SELECT id FROM users WHERE name = $1',
-        [name]
-      );
+      const existingPending = await db.query('SELECT id FROM pending_users WHERE name = $1', [name]);
+      if (existingPending.rows.length > 0) throw new Error('A registration request with this name is already pending');
 
-      if (existingUser.rows.length > 0) {
-        throw new Error('User already exists');
-      }
-
-      // Hash password
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-      // Create user with is_active = false — requires admin approval before login
       const result = await db.query(
-        `INSERT INTO users (name, password_hash, role, is_active) 
-         VALUES ($1, $2, 'user', false) 
-         RETURNING id, name, role, is_active, created_at`,
+        `INSERT INTO pending_users (name, password_hash) VALUES ($1, $2) RETURNING id, name`,
         [name, passwordHash]
       );
 
-      const user = result.rows[0];
+      const pending = result.rows[0];
 
-      // Return user info + a temp token ONLY for submitting the access request
-      // This token cannot access protected routes (user is inactive)
-      const token = this.generateToken(user);
+      // Temp token — only valid for submitting the access type
+      const token = this.generateToken({ id: pending.id, name: pending.name, role: 'pending' });
 
       return {
         success: true,
         pending: true,
-        user: { id: user.id, name: user.name, role: user.role, isActive: false },
-        token, // used only to call /auth/request-access
+        user: { id: pending.id, name: pending.name, role: 'pending', isActive: false },
+        token,
       };
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('Signup error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit access type for a pending user (called right after signup)
+   */
+  async submitPendingRequest(pendingUserId, accessType, reason) {
+    try {
+      if (!['readonly', 'full'].includes(accessType)) throw new Error('Invalid access type');
+
+      await db.query(
+        `UPDATE pending_users SET access_type = $1, reason = $2 WHERE id = $3`,
+        [accessType, reason || null, pendingUserId]
+      );
+
+      return { success: true, message: 'Request submitted. Waiting for admin approval.' };
+    } catch (error) {
+      console.error('submitPendingRequest error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all pending registration requests (admin only)
+   */
+  async getPendingRegistrations() {
+    try {
+      const result = await db.query(
+        `SELECT id, name, access_type, reason, requested_at FROM pending_users ORDER BY requested_at ASC`
+      );
+      return result.rows;
+    } catch (error) {
+      console.error('getPendingRegistrations error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Approve pending registration — moves to users table
+   */
+  async approvePendingUser(pendingId, adminId) {
+    try {
+      const result = await db.query('SELECT * FROM pending_users WHERE id = $1', [pendingId]);
+      if (result.rows.length === 0) throw new Error('Pending request not found');
+
+      const pending = result.rows[0];
+
+      // Check name not taken in users table
+      const existing = await db.query('SELECT id FROM users WHERE name = $1', [pending.name]);
+      if (existing.rows.length > 0) throw new Error('Username already exists in users');
+
+      // Insert into users table
+      const userResult = await db.query(
+        `INSERT INTO users (name, password_hash, role, is_active) VALUES ($1, $2, 'user', true) RETURNING id`,
+        [pending.name, pending.password_hash]
+      );
+
+      const userId = userResult.rows[0].id;
+
+      // Delete from pending_users
+      await db.query('DELETE FROM pending_users WHERE id = $1', [pendingId]);
+
+      // Log audit
+      try { await this.logAudit(adminId, 'approve_registration', userId, `Approved pending user: ${pending.name}`); } catch (_) {}
+
+      return { success: true, message: `User ${pending.name} approved and created` };
+    } catch (error) {
+      console.error('approvePendingUser error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject pending registration — deletes from pending_users
+   */
+  async rejectPendingUser(pendingId, adminId) {
+    try {
+      const result = await db.query('SELECT name FROM pending_users WHERE id = $1', [pendingId]);
+      if (result.rows.length === 0) throw new Error('Pending request not found');
+
+      await db.query('DELETE FROM pending_users WHERE id = $1', [pendingId]);
+
+      try { await this.logAudit(adminId, 'reject_registration', null, `Rejected pending user: ${result.rows[0].name}`); } catch (_) {}
+
+      return { success: true, message: 'Registration request rejected and deleted' };
+    } catch (error) {
+      console.error('rejectPendingUser error:', error.message);
       throw error;
     }
   }

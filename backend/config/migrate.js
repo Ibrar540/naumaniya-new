@@ -21,6 +21,17 @@ async function runMigrations() {
     `);
 
     await db.query(`
+      CREATE TABLE IF NOT EXISTS pending_users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        access_type VARCHAR(20) DEFAULT 'readonly' CHECK (access_type IN ('readonly', 'full')),
+        reason TEXT,
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
       CREATE TABLE IF NOT EXISTS admin_requests (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -363,4 +363,59 @@ router.post('/unregister-fcm-token', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/submit-pending-request
+ * Submit access type for a pending registration (no active user required)
+ */
+router.post('/submit-pending-request', authenticate, async (req, res) => {
+  try {
+    const { accessType, reason } = req.body;
+    const result = await authService.submitPendingRequest(req.user.id, accessType, reason);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /auth/admin/pending-registrations
+ * Get all pending registration requests (admin only)
+ */
+router.get('/admin/pending-registrations', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const requests = await authService.getPendingRegistrations();
+    res.json({ success: true, requests });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /auth/admin/approve-registration
+ * Approve a pending registration (admin only)
+ */
+router.post('/admin/approve-registration', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const { pendingId } = req.body;
+    const result = await authService.approvePendingUser(pendingId, req.user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /auth/admin/reject-registration
+ * Reject and delete a pending registration (admin only)
+ */
+router.post('/admin/reject-registration', authenticate, requireActive, requireAdmin, async (req, res) => {
+  try {
+    const { pendingId } = req.body;
+    const result = await authService.rejectPendingUser(pendingId, req.user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

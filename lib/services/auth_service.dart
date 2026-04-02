@@ -237,7 +237,74 @@ class AuthService {
     }
   }
 
-  /// Create access request (full | readonly) optionally scoped to modules
+  /// Submit access type for pending registration (called after signup)
+  Future<bool> submitPendingRequest(String accessType, String? reason) async {
+    try {
+      if (_token == null) return false;
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/submit-pending-request'),
+        headers: getAuthHeaders(),
+        body: jsonEncode({'accessType': accessType, 'reason': reason}),
+      );
+      final data = jsonDecode(response.body);
+      debugPrint('📋 submitPendingRequest: ${response.statusCode} ${response.body}');
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ submitPendingRequest error: $e');
+      return false;
+    }
+  }
+
+  /// Get pending registrations (admin only)
+  Future<List<Map<String, dynamic>>> getPendingRegistrations() async {
+    try {
+      if (_token == null || !isAdmin) return [];
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/admin/pending-registrations'),
+        headers: getAuthHeaders(),
+      );
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) return List<Map<String, dynamic>>.from(data['requests']);
+      return [];
+    } catch (e) {
+      debugPrint('❌ getPendingRegistrations error: $e');
+      return [];
+    }
+  }
+
+  /// Approve pending registration (admin only)
+  Future<bool> approvePendingUser(int pendingId) async {
+    try {
+      if (_token == null || !isAdmin) return false;
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/admin/approve-registration'),
+        headers: getAuthHeaders(),
+        body: jsonEncode({'pendingId': pendingId}),
+      );
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ approvePendingUser error: $e');
+      return false;
+    }
+  }
+
+  /// Reject pending registration (admin only)
+  Future<bool> rejectPendingUser(int pendingId) async {
+    try {
+      if (_token == null || !isAdmin) return false;
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/admin/reject-registration'),
+        headers: getAuthHeaders(),
+        body: jsonEncode({'pendingId': pendingId}),
+      );
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ rejectPendingUser error: $e');
+      return false;
+    }
+  }
   Future<bool> createAccessRequest(String type, List<String>? modules, String? reason) async {
     try {
       if (_token == null) {

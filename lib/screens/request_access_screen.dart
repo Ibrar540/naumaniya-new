@@ -29,7 +29,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
     String? errorMsg;
     bool ok = false;
     try {
-      ok = await _auth.createAccessRequest(_type, null, _reasonController.text.trim());
+      ok = await _auth.submitPendingRequest(_type, _reasonController.text.trim().isEmpty ? null : _reasonController.text.trim());
     } catch (e) {
       errorMsg = e.toString();
     }

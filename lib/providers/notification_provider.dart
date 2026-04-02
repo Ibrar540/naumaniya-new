@@ -29,7 +29,8 @@ class NotificationProvider extends ChangeNotifier {
       if (_auth.isAdmin) {
         final adminReqs = await _auth.getPendingRequests();
         final accessReqs = await _auth.getAccessRequests();
-        final newCount = adminReqs.length + accessReqs.length;
+        final pendingRegs = await _auth.getPendingRegistrations();
+        final newCount = adminReqs.length + accessReqs.length + pendingRegs.length;
         if (_pendingRequestCount == -1) {
           _pendingRequestCount = newCount;
         } else {
