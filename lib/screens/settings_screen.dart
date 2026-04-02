@@ -252,44 +252,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             return ListTile(
               title: Text(u['name'] ?? ''),
               subtitle: Text('${u['role'] ?? ''} • ${u['is_active'] == true ? 'Active' : 'Inactive'}'),
-              trailing: PopupMenuButton<String>(
-                onSelected: (v) async {
-                  if (v == 'deactivate') {
-                    final ok = await _auth.updateUserStatus(u['id'], false);
-                    if (ok) _loadAdminData();
-                  } else if (v == 'activate') {
-                    final ok = await _auth.updateUserStatus(u['id'], true);
-                    if (ok) _loadAdminData();
-                  } else if (v == 'delete') {
+              trailing: IconButton(
+                icon: Icon(Icons.delete, color: Colors.red),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text(isUrdu ? 'حذف کریں' : 'Delete'),
+                      content: Text(isUrdu ? 'کیا آپ واقعی صارف حذف کرنا چاہتے ہیں؟' : 'Are you sure you want to delete this user?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(isUrdu ? 'منسوخ' : 'Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(isUrdu ? 'حذف کریں' : 'Delete', style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
                     final ok = await _auth.deleteUser(u['id']);
                     if (ok) _loadAdminData();
                   }
                 },
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: u['is_active'] == true ? 'deactivate' : 'activate', child: Text(u['is_active'] == true ? (isUrdu ? 'غیر فعال کریں' : 'Deactivate') : (isUrdu ? 'فعال کریں' : 'Activate'))),
-                  PopupMenuItem(value: 'delete', child: Text(isUrdu ? 'حذف کریں' : 'Delete')),
-                ],
               ),
             );
           }).toList(),
-          Divider(),
-          Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(isUrdu ? 'ایڈمن درخواستیں' : 'Admin Requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          ..._requests.map((r) {
-            return ListTile(
-              title: Text(r['user_name'] ?? ''),
-              subtitle: Text(r['reason'] ?? ''),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton(onPressed: () async { await _auth.reviewAdminRequest(r['id'], true); _loadAdminData(); }, child: Text(isUrdu ? 'منظور' : 'Approve')),
-                  TextButton(onPressed: () async { await _auth.reviewAdminRequest(r['id'], false); _loadAdminData(); }, child: Text(isUrdu ? 'رد' : 'Reject')),
-                ],
-              ),
-            );
-          }).toList(),
+          
         ],
       ),
     );
