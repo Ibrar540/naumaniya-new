@@ -74,20 +74,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return urduRegex.hasMatch(text);
   }
 
-  // Function to build welcome message
   String _buildWelcomeMessage(String? institutionName, bool isUrdu) {
-    if (institutionName == null || institutionName.isEmpty) {
-      return isUrdu ? 'دارالعلوم نعمانیہ میں خوش آمدید' : 'Welcome to Darul Uloom Naumaniya';
-    }
-    
-    // Check if institution name contains Urdu script
-    bool hasUrduScript = _isUrduScript(institutionName);
-    
-    if (hasUrduScript) {
-      return 'خوش آمدید $institutionName میں';
-    } else {
-      return 'Welcome to $institutionName';
-    }
+    return 'مرحبًا بكم في مدرسة الإسلامية دار العلوم النعمانية';
   }
 
   // Function to get appropriate font family
@@ -183,25 +171,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   Center(
                     child: Padding(
-                    padding: EdgeInsets.only(top: bannerHeight * 0.18, left: 24, right: 24),
-                      child: Text(
-                        _buildWelcomeMessage(_institutionName, languageProvider.isUrdu),
-                        style: TextStyle(
-                        fontSize: isMobile ? 22 : 28,
-                        fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(0, 2),
-                            blurRadius: 6,
-                            color: Colors.black.withOpacity(0.18),
-                            ),
-                          ],
+                    padding: EdgeInsets.only(top: bannerHeight * 0.18, left: 24, right: 80),
+                      child: Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: Text(
+                          _buildWelcomeMessage(_institutionName, languageProvider.isUrdu),
+                          style: TextStyle(
+                          fontSize: isMobile ? 18 : 24,
+                          fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                            height: 1.4,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 2),
+                              blurRadius: 6,
+                              color: Colors.black.withOpacity(0.18),
+                              ),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        textAlign: TextAlign.center,
-                      maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
