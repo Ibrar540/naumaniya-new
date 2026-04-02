@@ -18,6 +18,7 @@ import '../services/enhanced_search_service.dart';
 import 'home_screen.dart';
 import '../providers/teacher_provider.dart';
 import 'dart:ui' as dart_ui;
+import '../utils/access_control.dart';
 
 class TeachersScreen extends StatefulWidget {
   const TeachersScreen({Key? key}) : super(key: key);
@@ -604,24 +605,26 @@ class _TeachersScreenState extends State<TeachersScreen> {
                                   alignment: Alignment.center,
                                   child: PopupMenuButton<String>(
                                     onSelected: (value) async {
-                                      switch (value) {
-                                        case 'edit':
-                                          await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => TeacherEnterDataScreen(teacher: teacher),
-                                            ),
-                                          );
-                                          await _loadTeachers();
-                                          break;
-                                        case 'left':
-                                          await _updateStatus(teacher, 'Left');
-                                          break;
-                                        case 'delete':
-                                          await _deleteTeacher(teacher);
-                                          break;
-                                      }
-                                    },
+                                        await runIfAdmin(context, () async {
+                                          switch (value) {
+                                            case 'edit':
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => TeacherEnterDataScreen(teacher: teacher),
+                                                ),
+                                              );
+                                              await _loadTeachers();
+                                              break;
+                                            case 'left':
+                                              await _updateStatus(teacher, 'Left');
+                                              break;
+                                            case 'delete':
+                                              await _deleteTeacher(teacher);
+                                              break;
+                                          }
+                                        });
+                                      },
                                     itemBuilder: (context) => [
                                       PopupMenuItem(
                                         value: 'edit',
@@ -671,13 +674,15 @@ class _TeachersScreenState extends State<TeachersScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TeacherEnterDataScreen(),
-            ),
-          );
-          await _loadTeachers();
+          await runIfAdmin(context, () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TeacherEnterDataScreen(),
+              ),
+            );
+            await _loadTeachers();
+          });
         },
         backgroundColor: Colors.green,
         child: Icon(Icons.add, color: Colors.white),
@@ -748,23 +753,25 @@ class _TeachersScreenState extends State<TeachersScreen> {
         ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) async {
-            switch (value) {
-              case 'edit':
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TeacherEnterDataScreen(teacher: teacher),
-                  ),
-                );
-                await _loadTeachers();
-                break;
-              case 'left':
-                await _updateStatus(teacher, 'Left');
-                break;
-              case 'delete':
-                await _deleteTeacher(teacher);
-                break;
-            }
+            await runIfAdmin(context, () async {
+              switch (value) {
+                case 'edit':
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TeacherEnterDataScreen(teacher: teacher),
+                    ),
+                  );
+                  await _loadTeachers();
+                  break;
+                case 'left':
+                  await _updateStatus(teacher, 'Left');
+                  break;
+                case 'delete':
+                  await _deleteTeacher(teacher);
+                  break;
+              }
+            });
           },
           itemBuilder: (context) => [
             PopupMenuItem(

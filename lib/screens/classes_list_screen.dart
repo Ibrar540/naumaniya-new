@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../utils/access_control.dart';
 import '../providers/language_provider.dart';
 import '../services/database_service.dart';
 import '../models/class_model.dart';
@@ -589,13 +590,15 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateClassScreen(),
-            ),
-          );
-          await _loadClasses();
+          await runIfAdmin(context, () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateClassScreen(),
+              ),
+            );
+            await _loadClasses();
+          });
         },
         backgroundColor: Colors.green,
         child: Icon(Icons.add, color: Colors.white),
@@ -645,22 +648,24 @@ class _ClassesListScreenState extends State<ClassesListScreen> {
               onSelected: (value) async {
                 switch (value) {
                   case 'edit':
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CreateClassScreen(classToEdit: classModel),
-                      ),
-                    );
-                    await _loadClasses();
+                    await runIfAdmin(context, () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CreateClassScreen(classToEdit: classModel),
+                        ),
+                      );
+                      await _loadClasses();
+                    });
                     break;
                   case 'delete':
-                    await _deleteClass(classModel);
+                    await runIfAdmin(context, () async { await _deleteClass(classModel); });
                     break;
                   case 'graduate':
-                    await _markClassAsGraduate(classModel);
+                    await runIfAdmin(context, () async { await _markClassAsGraduate(classModel); });
                     break;
                   case 'struck_off':
-                    await _markClassAsStruckOff(classModel);
+                    await runIfAdmin(context, () async { await _markClassAsStruckOff(classModel); });
                     break;
                 }
               },

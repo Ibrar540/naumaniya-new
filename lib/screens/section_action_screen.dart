@@ -8,6 +8,7 @@ import 'budget_enter_data_screen.dart';
 import 'section_options_detail_screen.dart';
 import 'home_screen.dart';
 import '../services/auth_service.dart';
+import '../utils/access_control.dart';
 
 class SectionActionScreen extends StatefulWidget {
   final String type; // 'income' or 'expenditure'
@@ -194,14 +195,16 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
               : _buildViewSections(isUrdu),
         ),
       ),
-      floatingActionButton: _isAdmin
-          ? FloatingActionButton(
-              onPressed: _showCreateSectionDialog,
-              backgroundColor: Colors.green,
-              child: Icon(Icons.add),
-              tooltip: isUrdu ? 'سیکشن بنائیں' : 'Create Section',
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          await runIfAdmin(context, () async {
+            _showCreateSectionDialog();
+          });
+        },
+        backgroundColor: Colors.green,
+        child: Icon(Icons.add),
+        tooltip: isUrdu ? 'سیکشن بنائیں' : 'Create Section',
+      ),
     );
   }
 
@@ -257,11 +260,15 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: _isAdmin ? () {
-                  setState(() {
-                    _selectedAction = 'create';
-                  });
-                } : null,
+                onPressed: () async {
+                  if (_isAdmin) {
+                    setState(() {
+                      _selectedAction = 'create';
+                    });
+                  } else {
+                    await runIfAdmin(context, () async {});
+                  }
+                },
                 child: Text(
                   isUrdu ? 'سیکشن بنائیں' : 'Create Section',
                   style: TextStyle(fontSize: 18),
@@ -450,7 +457,11 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
                                 if (_isAdmin)
                                   PopupMenuButton<String>(
                                     icon: Icon(Icons.more_vert),
-                                    onSelected: (value) => _handleMenuAction(value, section),
+                                    onSelected: (value) async {
+                                      await runIfAdmin(context, () async {
+                                        _handleMenuAction(value, section);
+                                      });
+                                    },
                                     itemBuilder: (context) => [
                                       PopupMenuItem(
                                         value: 'edit',

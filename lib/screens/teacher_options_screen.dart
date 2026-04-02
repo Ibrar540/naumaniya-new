@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/language_provider.dart';
 import 'teacher_enter_data_screen.dart';
+import '../utils/access_control.dart';
 import 'teachers_screen.dart';
 import 'home_screen.dart';
 
@@ -68,13 +69,15 @@ class TeacherOptionsScreen extends StatelessWidget {
                   subtitle: languageProvider.isUrdu
                       ? 'استاد کا ریکارڈ شامل کریں'
                       : 'Add Teacher Record',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TeacherEnterDataScreen(),
-                      ),
-                    );
+                  onTap: () async {
+                    await runIfAdmin(context, () async {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TeacherEnterDataScreen(),
+                        ),
+                      );
+                    });
                   },
                 ),
                 SizedBox(height: 24),

@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart' as pdf_lib;
 import '../utils/file_utils.dart';
 import 'package:excel/excel.dart' as excel_lib;
+import '../utils/access_control.dart';
 
 class SectionDataScreen extends StatefulWidget {
   final Section section;
@@ -448,11 +449,13 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                                   DataCell(
                                     PopupMenuButton<String>(
                                       onSelected: (value) async {
-                                        if (value == 'edit') {
-                                          _editRow(context, row);
-                                        } else if (value == 'delete') {
-                                          _deleteRow(context, row);
-                                        }
+                                        await runIfAdmin(context, () async {
+                                          if (value == 'edit') {
+                                            _editRow(context, row);
+                                          } else if (value == 'delete') {
+                                            _deleteRow(context, row);
+                                          }
+                                        });
                                       },
                                       itemBuilder: (context) => [
                                         PopupMenuItem(
@@ -489,17 +492,19 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
               ],
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BudgetEnterDataScreen(
-                type: widget.type,
-                section: widget.section,
-                institution: widget.institution,
+        onPressed: () async {
+          await runIfAdmin(context, () async {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BudgetEnterDataScreen(
+                  type: widget.type,
+                  section: widget.section,
+                  institution: widget.institution,
+                ),
               ),
-            ),
-          );
+            );
+          });
         },
         tooltip: isUrdu ? 'ڈیٹا شامل کریں' : 'Add Data',
         child: Icon(Icons.add),

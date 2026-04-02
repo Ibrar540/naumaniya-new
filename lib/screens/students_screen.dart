@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/database_service.dart';
 import '../providers/language_provider.dart';
+import '../utils/access_control.dart';
 import '../models/student.dart';
 import 'home_screen.dart';
 
@@ -312,20 +313,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
             child: PopupMenuButton<String>(
               icon: Icon(Icons.more_vert),
               onSelected: (value) async {
-                switch (value) {
-                  case 'edit':
-                    await _editStudent(student);
-                    break;
-                  case 'delete':
-                    await _deleteStudent(student);
-                    break;
-                  case 'graduate':
-                    await _updateStatus(student, 'Graduate');
-                    break;
-                  case 'struck_off':
-                    await _updateStatus(student, 'Struck Off');
-                    break;
-                }
+                await runIfAdmin(context, () async {
+                  switch (value) {
+                    case 'edit':
+                      await _editStudent(student);
+                      break;
+                    case 'delete':
+                      await _deleteStudent(student);
+                      break;
+                    case 'graduate':
+                      await _updateStatus(student, 'Graduate');
+                      break;
+                    case 'struck_off':
+                      await _updateStatus(student, 'Struck Off');
+                      break;
+                  }
+                });
               },
               itemBuilder: (context) => [
                 PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 16), SizedBox(width: 8), Text(languageProvider.isUrdu ? 'ترمیم' : 'Edit')])),

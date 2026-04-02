@@ -9,6 +9,7 @@ import '../widgets/voice_input_button.dart';
 import 'home_screen.dart';
 import '../providers/teacher_provider.dart';
 import '../services/auth_service.dart';
+import '../utils/access_control.dart';
 
 class TeacherEnterDataScreen extends StatefulWidget {
   final Teacher? teacher;
@@ -429,7 +430,15 @@ class _TeacherEnterDataScreenState extends State<TeacherEnterDataScreen> {
                                 width: double.infinity,
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: (!_isAdmin || _isLoading) ? null : _addTeacher,
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () async {
+                                          if (_isAdmin) {
+                                            await _addTeacher();
+                                          } else {
+                                            await runIfAdmin(context, () async {});
+                                          }
+                                        },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Color(0xFF1976D2),
                                     foregroundColor: Colors.white,

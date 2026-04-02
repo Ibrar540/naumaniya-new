@@ -4,6 +4,7 @@ import 'admission_form_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/language_provider.dart';
+import '../utils/access_control.dart';
 import 'home_screen.dart';
 import '../services/graduation_search_service.dart';
 import '../services/struckoff_search_service.dart';
@@ -2934,78 +2935,80 @@ class _AdmissionViewScreenState extends State<AdmissionViewScreen> {
             padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             child: PopupMenuButton<String>(
               onSelected: (value) async {
-                if (value == 'edit') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AdmissionFormScreen(
-                        admission: admission,
-                        isEdit: true,
-                      ),
-                    ),
-                  );
-                } else if (value == 'delete') {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text(isUrdu ? 'تصدیق کریں' : 'Confirm'),
-                      content: Text(
-                        isUrdu
-                            ? 'کیا آپ واقعی اس داخلے کو حذف کرنا چاہتے ہیں؟'
-                            : 'Are you sure you want to delete this admission?',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(isUrdu ? 'منسوخ کریں' : 'Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(
-                            isUrdu ? 'حذف کریں' : 'Delete',
-                            style: TextStyle(color: Colors.red),
+                  await runIfAdmin(context, () async {
+                    if (value == 'edit') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdmissionFormScreen(
+                            admission: admission,
+                            isEdit: true,
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                  
-                  if (confirmed == true) {
-                    try {
-                      await DatabaseService.deleteAdmission(admission['id'].toString());
-                      // Reload the admissions list
-                      setState(() {
-                        _admissions.clear();
-                        _lastId = null;
-                        _hasMore = true;
-                      });
-                      await _fetchAdmissions();
-                      
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(isUrdu ? 'حذف ہو گیا' : 'Deleted successfully'),
-                            backgroundColor: Colors.green,
+                      );
+                    } else if (value == 'delete') {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(isUrdu ? 'تصدیق کریں' : 'Confirm'),
+                          content: Text(
+                            isUrdu
+                                ? 'کیا آپ واقعی اس داخلے کو حذف کرنا چاہتے ہیں؟'
+                                : 'Are you sure you want to delete this admission?',
                           ),
-                        );
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(isUrdu ? 'منسوخ کریں' : 'Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(
+                                isUrdu ? 'حذف کریں' : 'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    
+                      if (confirmed == true) {
+                        try {
+                          await DatabaseService.deleteAdmission(admission['id'].toString());
+                          // Reload the admissions list
+                          setState(() {
+                            _admissions.clear();
+                            _lastId = null;
+                            _hasMore = true;
+                          });
+                          await _fetchAdmissions();
+                        
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isUrdu ? 'حذف ہو گیا' : 'Deleted successfully'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error deleting: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error deleting: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
+                    } else if (value == 'graduate') {
+                      await _updateStudentStatus(admission['id'].toString(), 'Graduate');
+                    } else if (value == 'struck_off') {
+                      await _updateStudentStatus(admission['id'].toString(), 'Struck Off');
                     }
-                  }
-                } else if (value == 'graduate') {
-                  await _updateStudentStatus(admission['id'].toString(), 'Graduate');
-                } else if (value == 'struck_off') {
-                  await _updateStudentStatus(admission['id'].toString(), 'Struck Off');
-                }
-              },
+                  });
+                },
               itemBuilder: (BuildContext context) {
                 return <PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
