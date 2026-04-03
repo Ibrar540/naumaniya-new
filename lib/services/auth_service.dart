@@ -524,6 +524,31 @@ class AuthService {
     }
   }
 
+  /// Post a generic audit log entry to the backend
+  Future<bool> postAudit(String action, {int? targetUserId, String? details}) async {
+    try {
+      if (_token == null) return false;
+
+      final body = {
+        'action': action,
+        if (targetUserId != null) 'targetUserId': targetUserId,
+        if (details != null) 'details': details,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/log'),
+        headers: getAuthHeaders(),
+        body: jsonEncode(body),
+      );
+
+      final data = jsonDecode(response.body);
+      return data['success'] == true;
+    } catch (e) {
+      debugPrint('❌ postAudit error: $e');
+      return false;
+    }
+  }
+
   /// Review admin request (admin only)
   Future<bool> reviewAdminRequest(int requestId, bool approve) async {
     try {

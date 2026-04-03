@@ -459,12 +459,13 @@ class AuthService {
         [userId, type, modules ? JSON.stringify(modules) : null, reason]
       );
 
-      // Notify all admins about the new access request
+      // Notify all admins about the new access request (include user name for clarity)
       try {
         const admins = await db.query("SELECT id, name FROM users WHERE role = 'admin'");
-        const msg = `User ${userId} requested ${type} access` + (reason ? `: ${reason}` : '');
+        const userName = await this.getUserName(userId) || `id=${userId}`;
+        const msg = `User ${userName} requested ${type} access` + (reason ? `: ${reason}` : '');
         for (const a of admins.rows) {
-          await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [a.id, msg, JSON.stringify({ type: 'access_request', userId, requestType: type })]);
+          await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [a.id, msg, JSON.stringify({ type: 'access_request', userId, userName, requestType: type })]);
         }
       } catch (e) {
         console.error('Failed to create admin notifications for access request:', e);
@@ -584,8 +585,13 @@ class AuthService {
           }
         }
 
-        // Log audit
-        await this.logAudit(adminId, 'approve_access_request', request.user_id, `Approved access request id=${requestId} type=${request.type}`);
+        // Log audit (include target user's name and request type)
+        try {
+          const targetName = await this.getUserName(request.user_id) || `id=${request.user_id}`;
+          await this.logAudit(adminId, 'approve_access_request', request.user_id, `Approved ${targetName}'s request for ${request.type} access (request id=${requestId})`);
+        } catch (e) {
+          console.error('Audit log failed:', e);
+        }
 
         // Notify the requester
         try {
@@ -595,13 +601,32 @@ class AuthService {
           console.error('Failed to notify requester about approval:', e);
         }
       } else {
-        await this.logAudit(adminId, 'reject_access_request', request.user_id, `Rejected access request id=${requestId}`);
+        try {
+          const targetName = await this.getUserName(request.user_id) || `id=${request.user_id}`;
+          await this.logAudit(adminId, 'reject_access_request', request.user_id, `Rejected ${targetName}'s request for ${request.type} access (request id=${requestId})`);
+        } catch (e) {
+          console.error('Audit log failed:', e);
+        }
         // Notify the requester about rejection
         try {
           const msg = `Your access request (id=${requestId}) was rejected`;
           await db.query('INSERT INTO notifications (user_id, message, data) VALUES ($1, $2, $3::jsonb)', [request.user_id, msg, JSON.stringify({ type: 'access_request_review', requestId, approved: false })]);
         } catch (e) {
           console.error('Failed to notify requester about rejection:', e);
+        }
+      }
+
+      else {
+        // Log rejection for admin request with target user name
+        try {
+          const request = await db.query('SELECT user_id FROM admin_requests WHERE id = $1', [requestId]);
+          if (request.rows.length > 0) {
+            const userId = request.rows[0].user_id;
+            const targetName = await this.getUserName(userId) || `id=${userId}`;
+            await this.logAudit(adminId, 'reject_admin_request', userId, `Rejected admin request for ${targetName} (request id=${requestId})`);
+          }
+        } catch (e) {
+          console.error('Audit log failed:', e);
         }
       }
 
@@ -668,7 +693,13 @@ class AuthService {
             await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', userId]);
           }
 
-          await this.logAudit(adminId, 'approve_admin_request', userId, `Approved request id=${requestId}`);
+          try {
+            const targetName = await this.getUserName(userId) || `id=${userId}`;
+            const actionText = isAdminPromotion ? 'Approved admin promotion' : 'Approved account approval';
+            await this.logAudit(adminId, 'approve_admin_request', userId, `${actionText} for ${targetName} (request id=${requestId})`);
+          } catch (e) {
+            console.error('Audit log failed:', e);
+          }
         }
       }
 
@@ -707,12 +738,7 @@ class AuthService {
         [isActive, userId]
       );
 
-      // Log audit - actor unknown here; caller should log with proper admin id when used via route
-      try {
-        await this.logAudit(null, 'update_user_status', userId, `Set is_active=${isActive}`);
-      } catch (e) {
-        console.error('Audit log failed:', e);
-      }
+      // Note: caller should log audit with the acting admin id for clarity
 
       return { success: true };
     } catch (error) {
@@ -727,16 +753,24 @@ class AuthService {
   async deleteUser(userId) {
     try {
       await db.query('DELETE FROM users WHERE id = $1', [userId]);
-
-      try {
-        await this.logAudit(null, 'delete_user', userId, `Deleted user id=${userId}`);
-      } catch (e) {
-        console.error('Audit log failed:', e);
-      }
+      // Note: caller (route) should log the audit with the acting admin id and user name
       return { success: true };
     } catch (error) {
       console.error('Delete user error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get a user's name by id
+   */
+  async getUserName(userId) {
+    try {
+      const r = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+      return r.rows.length > 0 ? r.rows[0].name : null;
+    } catch (e) {
+      console.error('Get user name error:', e);
+      return null;
     }
   }
 

@@ -306,6 +306,25 @@ router.get('/admin/history', authenticate, requireActive, requireAdmin, async (r
   }
 });
 
+
+/**
+ * POST /auth/log
+ * Generic audit log endpoint for clients to record actions.
+ * Expects JSON: { action, targetUserId (optional), details (optional) }
+ */
+router.post('/log', authenticate, requireActive, async (req, res) => {
+  try {
+    const { action, targetUserId = null, details = null } = req.body;
+    if (!action) return res.status(400).json({ success: false, error: 'action is required' });
+
+    await authService.logAudit(req.user.id, action, targetUserId, details);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Failed to write audit from /auth/log:', error);
+    res.status(500).json({ success: false, error: 'Failed to write audit log' });
+  }
+});
+
 /**
  * PUT /auth/admin/user-status
  * Update user active status (admin only)
@@ -314,8 +333,12 @@ router.put('/admin/user-status', authenticate, requireActive, requireAdmin, asyn
   try {
     const { userId, isActive } = req.body;
     const result = await authService.updateUserStatus(userId, isActive);
-    // Log who performed the action
-    try { await authService.logAudit(req.user.id, 'update_user_status', userId, `Set is_active=${isActive}`); } catch (e) { console.error('Audit log failed:', e); }
+    // Log who performed the action with the target user's name for clarity
+    try {
+      const targetName = await authService.getUserName(userId);
+      const nameText = targetName ? `${targetName} (id=${userId})` : `id=${userId}`;
+      await authService.logAudit(req.user.id, 'update_user_status', userId, `Set is_active=${isActive} for user ${nameText}`);
+    } catch (e) { console.error('Audit log failed:', e); }
     res.json(result);
   } catch (error) {
     res.status(400).json({
@@ -333,7 +356,11 @@ router.delete('/admin/user/:userId', authenticate, requireActive, requireAdmin, 
   try {
     const { userId } = req.params;
     const result = await authService.deleteUser(userId);
-    try { await authService.logAudit(req.user.id, 'delete_user', userId, `Deleted user id=${userId}`); } catch (e) { console.error('Audit log failed:', e); }
+    try {
+      const targetName = await authService.getUserName(userId);
+      const nameText = targetName ? `${targetName} (id=${userId})` : `id=${userId}`;
+      await authService.logAudit(req.user.id, 'delete_user', userId, `Deleted user ${nameText}`);
+    } catch (e) { console.error('Audit log failed:', e); }
     res.json(result);
   } catch (error) {
     res.status(400).json({

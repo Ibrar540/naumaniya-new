@@ -113,6 +113,16 @@ app.get('/run-migrations', async (req, res) => {
   }
 });
 
+// If this file is run directly, start an HTTP server for local testing.
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`🚀 Backend server listening on http://localhost:${port}`);
+  });
+} else {
+  module.exports = app;
+}
+
 /**
  * Main AI Query endpoint (Protected - requires authentication)
  */

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:postgres/postgres.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+import 'auth_service.dart';
 import '../models/teacher.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
@@ -182,43 +184,47 @@ class NeonDatabaseService {
     if (kDebugMode) {
       print('✅ Student added to Neon database');
     }
+
+    // Post audit log to backend (non-blocking)
+    try {
+      final studentName = name ?? admission['name'] ?? 'unknown';
+      final details = 'Added student $studentName';
+      AuthService().postAudit('add_student', details: details);
+    } catch (_) {}
   }
 
   // Update a student
   Future<void> updateAdmission(String id, Map<String, dynamic> admission) async {
     await _ensureConnection();
     
-    // If this is a partial update (only a few fields), fetch the current record first
+    // Fetch current record to detect lifecycle changes
+    final prevResult = await _connection!.execute(
+      Sql.named('SELECT * FROM students WHERE id = @id'),
+      parameters: {'id': int.parse(id)},
+    );
+    Map<String, dynamic>? prev;
+    if (prevResult.isNotEmpty) prev = prevResult.first.toColumnMap();
+
+    // If this is a partial update (only a few fields), merge with existing
     final isPartialUpdate = admission.length < 5;
     Map<String, dynamic> fullData = admission;
-    
-    if (isPartialUpdate) {
-      // Fetch current record
-      final result = await _connection!.execute(
-        Sql.named('SELECT * FROM students WHERE id = @id'),
-        parameters: {'id': int.parse(id)},
-      );
-      
-      if (result.isNotEmpty) {
-        final current = result.first.toColumnMap();
-        // Merge current data with updates
-        fullData = {
-          'student_name': admission['student_name'] ?? admission['name'] ?? current['name'],
-          'father_name': admission['father_name'] ?? current['father_name'],
-          'mobile': admission['mobile'] ?? admission['mobile_no'] ?? current['mobile_no'],
-          'class': admission['class'] ?? current['class'],
-          'fee': admission['fee'] ?? current['fee'],
-          'status': admission['status'] ?? current['status'],
-          'admission_date': admission['admission_date'] ?? current['admission_date'],
-          'struck_off_date': admission.containsKey('struck_off_date') 
-              ? admission['struck_off_date'] 
-              : current['struck_off_date'],
-          'graduation_date': admission.containsKey('graduation_date')
-              ? admission['graduation_date']
-              : current['graduation_date'],
-          'picture_url': admission['picture_url'] ?? admission['image'] ?? current['image'],
-        };
-      }
+    if (isPartialUpdate && prev != null) {
+      fullData = {
+        'student_name': admission['student_name'] ?? admission['name'] ?? prev['name'],
+        'father_name': admission['father_name'] ?? prev['father_name'],
+        'mobile': admission['mobile'] ?? admission['mobile_no'] ?? prev['mobile_no'],
+        'class': admission['class'] ?? prev['class'],
+        'fee': admission['fee'] ?? prev['fee'],
+        'status': admission['status'] ?? prev['status'],
+        'admission_date': admission['admission_date'] ?? prev['admission_date'],
+        'struck_off_date': admission.containsKey('struck_off_date')
+            ? admission['struck_off_date']
+            : prev['struck_off_date'],
+        'graduation_date': admission.containsKey('graduation_date')
+            ? admission['graduation_date']
+            : prev['graduation_date'],
+        'picture_url': admission['picture_url'] ?? admission['image'] ?? prev['image'],
+      };
     }
     
     final name = fullData['student_name'] ?? fullData['name'];
@@ -268,6 +274,13 @@ class NeonDatabaseService {
         'image': image,
       },
     );
+
+    // Post audit log
+    try {
+      final updatedName = name ?? 'id=$id';
+      final details = 'Updated student ${updatedName} (id=$id)';
+      AuthService().postAudit('update_student', details: details);
+    } catch (_) {}
   }
 
   // Delete a student
@@ -278,6 +291,10 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM students WHERE id = @id'),
       parameters: {'id': int.parse(id)},
     );
+    // Post audit log
+    try {
+      AuthService().postAudit('delete_student', details: 'Deleted student id=$id');
+    } catch (_) {}
   }
 
   // Search students
@@ -338,9 +355,8 @@ class NeonDatabaseService {
         'salary': teacher.salary,
       },
     );
-  }
-
-  // Update a teacher
+    // Audit
+    try { AuthService().postAudit('add_teacher', details: 'Added teacher ${teacher.name}'); } catch (_) {}
   Future<void> updateTeacher(Teacher teacher) async {
     if (teacher.id == null) return;
     await _ensureConnection();
@@ -353,6 +369,16 @@ class NeonDatabaseService {
       mobileNo = int.tryParse(cleanMobile);
     }
     
+    // Fetch previous salary to detect salary changes
+    dynamic prevSalary;
+    try {
+      final prevRes = await _connection!.execute(
+        Sql.named('SELECT salary FROM teachers WHERE id = @id'),
+        parameters: {'id': teacher.id},
+      );
+      if (prevRes.isNotEmpty) prevSalary = prevRes.first.toColumnMap()['salary'];
+    } catch (_) {}
+
     await _connection!.execute(
       Sql.named('''
         UPDATE teachers 
@@ -371,6 +397,12 @@ class NeonDatabaseService {
         'salary': teacher.salary,
       },
     );
+    try { AuthService().postAudit('update_teacher', details: 'Updated teacher ${teacher.name} (id=${teacher.id})'); } catch (_) {}
+    try {
+      if (prevSalary != null && prevSalary.toString() != (teacher.salary ?? '').toString()) {
+        AuthService().postAudit('update_teacher_salary', details: 'Updated salary for ${teacher.name} from ${prevSalary} to ${teacher.salary} (id=${teacher.id})');
+      }
+    } catch (_) {}
   }
 
   // Delete a teacher
@@ -381,6 +413,7 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM teachers WHERE id = @id'),
       parameters: {'id': int.parse(teacherId)},
     );
+    try { AuthService().postAudit('delete_teacher', details: 'Deleted teacher id=$teacherId'); } catch (_) {}
   }
 
   // Update teacher status
@@ -391,6 +424,7 @@ class NeonDatabaseService {
       Sql.named('UPDATE teachers SET status = @status WHERE id = @id'),
       parameters: {'id': teacherId, 'status': newStatus},
     );
+    try { AuthService().postAudit('update_teacher_status', details: 'Updated teacher status to ${newStatus} (id=${teacherId})'); } catch (_) {}
   }
 
   // ==================== SECTIONS ====================
@@ -437,6 +471,10 @@ class NeonDatabaseService {
         'type': section.type,
       },
     );
+    // Audit
+    try {
+      AuthService().postAudit('add_section', details: 'Added section ${section.name}');
+    } catch (_) {}
   }
 
   // Update a section
@@ -458,6 +496,7 @@ class NeonDatabaseService {
         'type': section.type,
       },
     );
+    try { AuthService().postAudit('update_section', details: 'Updated section ${section.name} (id=${section.id})'); } catch (_) {}
   }
 
   // Delete a section
@@ -468,6 +507,7 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM sections WHERE id = @id'),
       parameters: {'id': sectionId},
     );
+    try { AuthService().postAudit('delete_section', details: 'Deleted section id=$sectionId'); } catch (_) {}
   }
 
   // ==================== BUDGET HELPER ====================
@@ -549,6 +589,7 @@ class NeonDatabaseService {
         'section_id': income.sectionId,
       },
     );
+    try { AuthService().postAudit('add_income', details: 'Added income ${income.description ?? ''} amount=${income.amount}'); } catch (_) {}
   }
 
   // Update an income
@@ -572,6 +613,7 @@ class NeonDatabaseService {
         'section_id': income.sectionId,
       },
     );
+    try { AuthService().postAudit('update_income', details: 'Updated income id=${income.id} description=${income.description ?? ''} amount=${income.amount}'); } catch (_) {}
   }
 
   // Delete an income
@@ -583,6 +625,7 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM $tableName WHERE id = @id'),
       parameters: {'id': incomeId},
     );
+    try { AuthService().postAudit('delete_income', details: 'Deleted income id=$incomeId'); } catch (_) {}
   }
 
   // ==================== EXPENDITURE ====================
@@ -649,6 +692,7 @@ class NeonDatabaseService {
         'section_id': expenditure.sectionId,
       },
     );
+    try { AuthService().postAudit('add_expenditure', details: 'Added expenditure ${expenditure.description ?? ''} amount=${expenditure.amount}'); } catch (_) {}
   }
 
   // Update an expenditure
@@ -672,6 +716,7 @@ class NeonDatabaseService {
         'section_id': expenditure.sectionId,
       },
     );
+    try { AuthService().postAudit('update_expenditure', details: 'Updated expenditure id=${expenditure.id} description=${expenditure.description ?? ''} amount=${expenditure.amount}'); } catch (_) {}
   }
 
   // Delete an expenditure
@@ -683,6 +728,7 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM $tableName WHERE id = @id'),
       parameters: {'id': expenditureId},
     );
+    try { AuthService().postAudit('delete_expenditure', details: 'Deleted expenditure id=$expenditureId'); } catch (_) {}
   }
 
   // ==================== CLASSES ====================
@@ -739,6 +785,7 @@ class NeonDatabaseService {
     if (kDebugMode) {
       print('✅ Class inserted successfully');
     }
+    try { AuthService().postAudit('add_class', details: 'Added class ${classModel.name}'); } catch (_) {}
   }
 
   // Update a class
@@ -757,6 +804,7 @@ class NeonDatabaseService {
         'name': classModel.name,
       },
     );
+    try { AuthService().postAudit('update_class', details: 'Updated class ${classModel.name} (id=${classModel.id})'); } catch (_) {}
   }
 
   // Delete a class
@@ -767,6 +815,7 @@ class NeonDatabaseService {
       Sql.named('DELETE FROM classes WHERE id = @id'),
       parameters: {'id': classId},
     );
+    try { AuthService().postAudit('delete_class', details: 'Deleted class id=$classId'); } catch (_) {}
   }
 
   // Update class status

@@ -274,14 +274,20 @@ class _ClassStudentsScreenState extends State<ClassStudentsScreen> {
 
       final excel = excel_lib.Excel.createExcel();
       final sheet = excel['Students'];
-      sheet.appendRow(['ID', 'Name', 'Father', 'Mobile', 'Fee']);
+      sheet.appendRow([
+        excel_lib.TextCellValue('ID'),
+        excel_lib.TextCellValue('Name'),
+        excel_lib.TextCellValue('Father'),
+        excel_lib.TextCellValue('Mobile'),
+        excel_lib.TextCellValue('Fee'),
+      ]);
       for (final s in students) {
         sheet.appendRow([
-          s['id']?.toString() ?? '',
-          s['name'] ?? '',
-          s['father_name'] ?? '',
-          s['mobile'] ?? '',
-          s['fee']?.toString() ?? '',
+          excel_lib.TextCellValue(s['id']?.toString() ?? ''),
+          excel_lib.TextCellValue(s['name'] ?? ''),
+          excel_lib.TextCellValue(s['father_name'] ?? ''),
+          excel_lib.TextCellValue(s['mobile'] ?? ''),
+          excel_lib.TextCellValue(s['fee']?.toString() ?? ''),
         ]);
       }
       final bytes = excel.encode()!;
