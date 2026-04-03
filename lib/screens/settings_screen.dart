@@ -317,6 +317,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           final actor = h['actor_name'] ?? h['actor_id']?.toString() ?? '';
           final action = h['action'] ?? '';
           final details = h['details'] ?? '';
+          final targetName = h['target_user_name'];
+
+          // If a target user name is available, replace any 'id=NN' occurrences in details
+          var displayDetails = details;
+          if (targetName != null && targetName.toString().isNotEmpty) {
+            displayDetails = displayDetails.replaceAll(RegExp(r"id=\d+"), targetName.toString());
+          }
           return ListTile(
             leading: CircleAvatar(
               radius: 18,
@@ -324,8 +331,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Icon(Icons.history, size: 18, color: Color(0xFF1976D2)),
             ),
             title: Text('$action — $actor', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            subtitle: Text('$details\n$when', style: TextStyle(fontSize: 11)),
-            isThreeLine: details.isNotEmpty,
+            subtitle: Text('$displayDetails\n$when', style: TextStyle(fontSize: 11)),
+            isThreeLine: displayDetails.isNotEmpty,
           );
         },
       ),
