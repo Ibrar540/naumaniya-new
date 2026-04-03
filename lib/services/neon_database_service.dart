@@ -357,6 +357,8 @@ class NeonDatabaseService {
     );
     // Audit
     try { AuthService().postAudit('add_teacher', details: 'Added teacher ${teacher.name}'); } catch (_) {}
+  }
+
   Future<void> updateTeacher(Teacher teacher) async {
     if (teacher.id == null) return;
     await _ensureConnection();

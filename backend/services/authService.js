@@ -616,19 +616,7 @@ class AuthService {
         }
       }
 
-      else {
-        // Log rejection for admin request with target user name
-        try {
-          const request = await db.query('SELECT user_id FROM admin_requests WHERE id = $1', [requestId]);
-          if (request.rows.length > 0) {
-            const userId = request.rows[0].user_id;
-            const targetName = await this.getUserName(userId) || `id=${userId}`;
-            await this.logAudit(adminId, 'reject_admin_request', userId, `Rejected admin request for ${targetName} (request id=${requestId})`);
-          }
-        } catch (e) {
-          console.error('Audit log failed:', e);
-        }
-      }
+      
 
       return { success: true, message: `Request ${status}` };
     } catch (error) {
