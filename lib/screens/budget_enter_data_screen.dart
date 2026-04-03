@@ -6,6 +6,7 @@ import '../models/section.dart';
 import '../providers/language_provider.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
+import '../models/loan.dart';
 import '../widgets/voice_input_button.dart';
 import 'home_screen.dart';
 import '../providers/budget_provider.dart';
@@ -32,6 +33,7 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
   final _amountController = TextEditingController();
   DateTime? _selectedDate;
   late String _selectedType;
+  String _loanTxnType = 'loan'; // for loan entries: 'loan' or 'payment'
   bool _isLoading = false;
   final BudgetProvider _budgetProvider = BudgetProvider();
   final AuthService _auth = AuthService();
@@ -88,7 +90,7 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
             sectionDocId: widget.section.docId,
             institution: widget.institution,
           ));
-        } else {
+        } else if (_selectedType == 'expenditure') {
           await _budgetProvider.addExpenditure(Expenditure(
             description: desc,
             amount: amount,
@@ -97,6 +99,20 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
             sectionDocId: widget.section.docId,
             institution: widget.institution,
           ));
+        } else if (_selectedType == 'loan') {
+          // Add loan/payment record
+          final loan = Loan(
+            description: desc,
+            transactionType: _loanTxnType,
+            amount: amount,
+            date: date,
+            sectionId: widget.section.id,
+            sectionDocId: widget.section.docId,
+            institution: widget.institution,
+          );
+          await _budgetProvider.addLoan(loan);
+        } else {
+          // fallback
         }
         _descriptionController.clear();
         _amountController.clear();
@@ -208,12 +224,10 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                             SizedBox(height: 16),
                             Text(
                               _selectedType == 'income'
-                                  ? (isUrdu
-                                      ? 'نئی آمدنی شامل کریں'
-                                      : 'Add New Income')
-                                  : (isUrdu
-                                      ? 'نیا خرچ شامل کریں'
-                                      : 'Add New Expenditure'),
+                                  ? (isUrdu ? 'نئی آمدنی شامل کریں' : 'Add New Income')
+                                  : (_selectedType == 'expenditure'
+                                      ? (isUrdu ? 'نیا خرچ شامل کریں' : 'Add New Expenditure')
+                                      : (isUrdu ? 'نیا قرض/ادائیگی شامل کریں' : 'Add New Loan/Payment')),
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -272,6 +286,20 @@ class _BudgetEnterDataScreenState extends State<BudgetEnterDataScreen> {
                               isUrdu: isUrdu,
                             ),
                             SizedBox(height: 16),
+                            if (_selectedType == 'loan') ...[
+                              DropdownButtonFormField<String>(
+                                value: _loanTxnType,
+                                items: [
+                                  DropdownMenuItem(value: 'loan', child: Text(isUrdu ? 'قرض' : 'Loan')),
+                                  DropdownMenuItem(value: 'payment', child: Text(isUrdu ? 'ادائیگی' : 'Payment')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) setState(() => _loanTxnType = v);
+                                },
+                                decoration: InputDecoration(labelText: isUrdu ? 'اقسام' : 'Type', border: OutlineInputBorder()),
+                              ),
+                              SizedBox(height: 16),
+                            ],
                             _buildTextField(
                               controller: _amountController,
                               label: languageProvider.getText('amount'),

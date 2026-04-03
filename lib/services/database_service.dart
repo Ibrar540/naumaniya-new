@@ -4,6 +4,7 @@
 import '../models/teacher.dart';
 import '../models/income.dart';
 import '../models/expenditure.dart';
+import '../models/loan.dart';
 import '../models/section.dart';
 import '../models/class_model.dart';
 import 'neon_database_service.dart';
@@ -141,6 +142,31 @@ class DatabaseService {
 
   static Future<void> deleteExpenditure(dynamic expenditureId, {String institution = 'madrasa'}) {
     return _neonService.deleteExpenditure(expenditureId, institution: institution);
+  }
+
+  // ==================== LOANS (Loan / Payment records) ====================
+
+  static Future<List<Map<String, dynamic>>> getAllLoans({String institution = 'madrasa'}) {
+    if (institution != 'madrasa') return Future.value([]);
+    return _neonService.getAllLoans(institution: institution);
+  }
+
+  static Future<List<Map<String, dynamic>>> getLoanBySection(int sectionId, {String institution = 'madrasa'}) {
+    if (institution != 'madrasa') return Future.value([]);
+    return _neonService.getLoanBySection(sectionId, institution: institution);
+  }
+
+  static Future<void> addLoan(Loan loan) {
+    if (loan.institution != null && loan.institution != 'madrasa') return Future.value();
+    return _neonService.addLoan(loan);
+  }
+
+  static Future<void> updateLoan(Loan loan) {
+    return _neonService.updateLoan(loan);
+  }
+
+  static Future<void> deleteLoan(dynamic loanId, {String institution = 'madrasa'}) {
+    return _neonService.deleteLoan(loanId, institution: institution);
   }
 
   // ==================== CLASSES ====================

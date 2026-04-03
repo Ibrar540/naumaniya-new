@@ -3,6 +3,7 @@ import '../models/income.dart';
 import '../models/expenditure.dart';
 import '../models/section.dart';
 import '../services/database_service.dart';
+import '../models/loan.dart';
 
 class BudgetProvider extends ChangeNotifier {
   List<Income> _incomes = [];
@@ -19,6 +20,8 @@ class BudgetProvider extends ChangeNotifier {
   List<Income> get incomes => _incomes;
   List<Expenditure> get expenditures => _expenditures;
   List<Section> get sections => _sections;
+  List<Loan> _loans = [];
+  List<Loan> get loans => _loans;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -125,6 +128,67 @@ class BudgetProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  // ================= LOANS =================
+
+  Future<void> loadLoans({String institution = 'madrasa'}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final data = await DatabaseService.getAllLoans(institution: institution);
+      _loans = data.map((item) => Loan.fromMap(item)).toList();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      if (kDebugMode) print('Error loading loans: $e');
+      notifyListeners();
+    }
+  }
+
+  Future<void> addLoan(Loan loan) async {
+    try {
+      if (kDebugMode) print('BudgetProvider.addLoan: saving loan for sectionId=${loan.sectionId} institution=${loan.institution}');
+      await DatabaseService.addLoan(loan);
+      await loadLoans(institution: loan.institution ?? 'madrasa');
+      if (kDebugMode) print('BudgetProvider.addLoan: saved loan successfully');
+    } catch (e, st) {
+      _error = e.toString();
+      if (kDebugMode) print('BudgetProvider.addLoan: ERROR saving loan: $e\n$st');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateLoan(Loan loan) async {
+    if (loan.id == null) return;
+    try {
+      await DatabaseService.updateLoan(loan);
+      await loadLoans(institution: loan.institution ?? 'madrasa');
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteLoan(dynamic loanId, {String institution = 'madrasa'}) async {
+    try {
+      await DatabaseService.deleteLoan(loanId, institution: institution);
+      await loadLoans(institution: institution);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchLoansBySection(int sectionId, {String institution = 'madrasa'}) async {
+    return await DatabaseService.getLoanBySection(sectionId, institution: institution);
   }
 
   Future<void> updateExpenditure(Expenditure expenditure) async {

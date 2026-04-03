@@ -72,6 +72,8 @@ class LanguageProvider extends ChangeNotifier {
     // Budget Management
     'income': 'Income',
     'expenditure': 'Expenditure',
+    'loan': 'Loan',
+    'payment': 'Payment',
     'description': 'Description',
     'amount': 'Amount',
     'date': 'Date',
@@ -263,6 +265,8 @@ class LanguageProvider extends ChangeNotifier {
     // Budget Management
     'income': 'آمدنی',
     'expenditure': 'خرچ',
+    'loan': 'قرض',
+    'payment': 'ادائیگی',
     'description': 'تفصیل',
     'amount': 'رقم',
     'date': 'تاریخ',

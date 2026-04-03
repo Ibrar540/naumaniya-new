@@ -140,7 +140,7 @@ class _SectionActionScreenState extends State<SectionActionScreen> {
         title: Text(
           widget.type == 'income'
               ? (isUrdu ? 'آمدنی' : 'Income')
-              : (isUrdu ? 'اخراجات' : 'Expenditure'),
+              : (widget.type == 'expenditure' ? (isUrdu ? 'اخراجات' : 'Expenditure') : (isUrdu ? 'قرض' : 'Loan')),
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Color(0xFF1976D2),

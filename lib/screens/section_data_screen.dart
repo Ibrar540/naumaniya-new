@@ -84,6 +84,12 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
           institution: widget.institution,
         );
       }
+      if (widget.type == 'loan') {
+        data = await DatabaseService.getLoanBySection(
+          widget.section.id!,
+          institution: widget.institution,
+        );
+      }
       setState(() {
         _data = data;
         _filteredData = data;
@@ -203,27 +209,32 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                     'date': selectedDate?.toIso8601String(),
                   };
 
-                  if (widget.type == 'income') {
-                    final income = Income(
-                      id: row['id'],
-                      description: descController.text,
-                      amount: double.tryParse(amountController.text) ?? 0,
-                      date: selectedDate != null ? DateFormat('yyyy-MM-dd').format(selectedDate!) : '',
-                      sectionId: widget.section.id,
-                      institution: widget.institution,
-                    );
-                    await DatabaseService.updateIncome(income);
-                  } else {
-                    final expenditure = Expenditure(
-                      id: row['id'],
-                      description: descController.text,
-                      amount: double.tryParse(amountController.text) ?? 0,
-                      date: selectedDate != null ? DateFormat('yyyy-MM-dd').format(selectedDate!) : '',
-                      sectionId: widget.section.id,
-                      institution: widget.institution,
-                    );
-                    await DatabaseService.updateExpenditure(expenditure);
-                  }
+                              if (widget.type == 'income') {
+                                final income = Income(
+                                  id: row['id'],
+                                  description: descController.text,
+                                  amount: double.tryParse(amountController.text) ?? 0,
+                                  date: selectedDate != null ? DateFormat('yyyy-MM-dd').format(selectedDate!) : '',
+                                  sectionId: widget.section.id,
+                                  institution: widget.institution,
+                                );
+                                await DatabaseService.updateIncome(income);
+                              } else if (widget.type == 'expenditure') {
+                                final expenditure = Expenditure(
+                                  id: row['id'],
+                                  description: descController.text,
+                                  amount: double.tryParse(amountController.text) ?? 0,
+                                  date: selectedDate != null ? DateFormat('yyyy-MM-dd').format(selectedDate!) : '',
+                                  sectionId: widget.section.id,
+                                  institution: widget.institution,
+                                );
+                                await DatabaseService.updateExpenditure(expenditure);
+                              } else if (widget.type == 'loan') {
+                                // Do not allow editing loan/payment records per requirement
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editing loan records is not allowed')));
+                                Navigator.pop(context);
+                                return;
+                              }
 
                   Navigator.pop(context);
                   await _loadData();
@@ -428,62 +439,145 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                               headingRowHeight: 36,
                               dataRowMinHeight: 32,
                               dataRowMaxHeight: 40,
-                              columns: isUrdu
-                                  ? [
-                                      DataColumn(label: Expanded(child: Text('اعمال', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Expanded(child: Text('تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Expanded(child: Text('رقم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Expanded(child: Text('تفصیل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                    ]
-                                  : [
-                                      DataColumn(label: Expanded(child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Container(width: 70, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Container(width: 85, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                      DataColumn(label: Container(width: 60, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
-                                    ],
-                              rows: _filteredData.map((row) {
-                                final cells = [
-                                  DataCell(Container(width: 150, child: Text(row['description'] ?? '', style: TextStyle(fontSize: 11), softWrap: true, maxLines: 2))),
-                                  DataCell(Container(width: 70, child: Text(row['amount'].toString(), style: TextStyle(fontSize: 11)))),
-                                  DataCell(Container(width: 85, child: Text(_formatDateOnly(row['date'] ?? ''), style: TextStyle(fontSize: 11)))),
-                                  DataCell(
-                                    PopupMenuButton<String>(
-                                      onSelected: (value) async {
-                                        await runIfAdmin(context, () async {
-                                          if (value == 'edit') {
-                                            _editRow(context, row);
-                                          } else if (value == 'delete') {
-                                            _deleteRow(context, row);
-                                          }
-                                        });
-                                      },
-                                      itemBuilder: (context) => [
-                                        PopupMenuItem(
-                                          value: 'edit',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.edit, size: 18),
-                                              SizedBox(width: 8),
-                                              Text(isUrdu ? 'ترمیم' : 'Edit'),
-                                            ],
-                                          ),
+                              columns: widget.type == 'loan'
+                                  ? (isUrdu
+                                      ? [
+                                          DataColumn(label: Expanded(child: Text('تفصیل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('قسم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('رقم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('بیلنس', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                        ]
+                                      : [
+                                          DataColumn(label: Expanded(child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 80, child: Text('Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 70, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 90, child: Text('Balance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 85, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                        ])
+                                  : (isUrdu
+                                      ? [
+                                          DataColumn(label: Expanded(child: Text('اعمال', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('تاریخ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('رقم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Expanded(child: Text('تفصیل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                        ]
+                                      : [
+                                          DataColumn(label: Expanded(child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 70, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 85, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                          DataColumn(label: Container(width: 60, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)))),
+                                        ]),
+                              rows: (() {
+                                if (widget.type == 'loan') {
+                                  // For loans, compute running balance chronologically
+                                  final items = List<Map<String, dynamic>>.from(_filteredData);
+                                  // sort ascending by date for running balance
+                                  items.sort((a, b) {
+                                    final ad = DateTime.tryParse(a['date']?.toString() ?? '') ?? DateTime(1970);
+                                    final bd = DateTime.tryParse(b['date']?.toString() ?? '') ?? DateTime(1970);
+                                    return ad.compareTo(bd);
+                                  });
+                                  double running = 0.0;
+                                  final rows = <DataRow>[];
+                                  for (final row in items) {
+                                    final amt = (row['amount'] is num) ? (row['amount'] as num).toDouble() : double.tryParse(row['amount']?.toString() ?? '0') ?? 0.0;
+                                    final type = (row['transaction_type'] ?? row['type'] ?? 'loan').toString().toLowerCase();
+                                    if (type == 'loan') running += amt; else running -= amt;
+                                    final cells = [
+                                      DataCell(Container(width: 200, child: Text(row['description'] ?? '', style: TextStyle(fontSize: 11), softWrap: true, maxLines: 2))),
+                                      DataCell(Container(width: 80, child: Text(type.toUpperCase(), style: TextStyle(fontSize: 11)))),
+                                      DataCell(Container(width: 70, child: Text(amt.toStringAsFixed(2), style: TextStyle(fontSize: 11)))),
+                                      DataCell(Container(width: 90, child: Text(running.toStringAsFixed(2), style: TextStyle(fontSize: 11)))),
+                                      DataCell(Container(width: 85, child: Text(_formatDateOnly(row['date'] ?? ''), style: TextStyle(fontSize: 11)))),
+                                      DataCell(
+                                        PopupMenuButton<String>(
+                                          onSelected: (value) async {
+                                            if (value == 'view') {
+                                              // show a simple dialog with details
+                                              showDialog(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: Text(isUrdu ? 'تفصیل' : 'Details'),
+                                                  content: SingleChildScrollView(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text('Description: ${row['description'] ?? ''}'),
+                                                        SizedBox(height: 8),
+                                                        Text('Type: ${(row['transaction_type'] ?? row['type']) ?? ''}'),
+                                                        SizedBox(height: 8),
+                                                        Text('Amount: ${row['amount']?.toString() ?? ''}'),
+                                                        SizedBox(height: 8),
+                                                        Text('Action: ${row['action'] ?? ''}'),
+                                                        SizedBox(height: 8),
+                                                        Text('Date: ${_formatDateOnly(row['date'] ?? '')}'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          itemBuilder: (context) => [
+                                            PopupMenuItem(
+                                              value: 'view',
+                                              child: Row(children: [Icon(Icons.visibility, size: 18), SizedBox(width: 8), Text(isUrdu ? 'تفصیل' : 'View')]),
+                                            ),
+                                          ],
                                         ),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.delete, size: 18),
-                                              SizedBox(width: 8),
-                                              Text(isUrdu ? 'حذف' : 'Delete'),
-                                            ],
-                                          ),
+                                      ),
+                                    ];
+                                    rows.add(DataRow(cells: isUrdu ? cells.reversed.toList() : cells));
+                                  }
+                                  return rows;
+                                } else {
+                                  return _filteredData.map((row) {
+                                    final cells = [
+                                      DataCell(Container(width: 150, child: Text(row['description'] ?? '', style: TextStyle(fontSize: 11), softWrap: true, maxLines: 2))),
+                                      DataCell(Container(width: 70, child: Text(row['amount'].toString(), style: TextStyle(fontSize: 11)))),
+                                      DataCell(Container(width: 85, child: Text(_formatDateOnly(row['date'] ?? ''), style: TextStyle(fontSize: 11)))),
+                                      DataCell(
+                                        PopupMenuButton<String>(
+                                          onSelected: (value) async {
+                                            await runIfAdmin(context, () async {
+                                              if (value == 'edit') {
+                                                _editRow(context, row);
+                                              } else if (value == 'delete') {
+                                                _deleteRow(context, row);
+                                              }
+                                            });
+                                          },
+                                          itemBuilder: (context) => [
+                                            PopupMenuItem(
+                                              value: 'edit',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.edit, size: 18),
+                                                  SizedBox(width: 8),
+                                                  Text(isUrdu ? 'ترمیم' : 'Edit'),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'delete',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.delete, size: 18),
+                                                  SizedBox(width: 8),
+                                                  Text(isUrdu ? 'حذف' : 'Delete'),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ];
-                                return DataRow(cells: isUrdu ? cells.reversed.toList() : cells);
-                              }).toList(),
+                                      ),
+                                    ];
+                                    return DataRow(cells: isUrdu ? cells.reversed.toList() : cells);
+                                  }).toList();
+                                }
+                              })(),
                             ),
                           ),
                           ),

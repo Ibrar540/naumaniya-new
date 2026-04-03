@@ -102,6 +102,35 @@ class MadrasaBudgetScreen extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 220,
+              height: 56,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (c) => SectionActionScreen(
+                        type: 'loan',
+                        institution: 'madrasa',
+                      ),
+                    ),
+                  );
+                },
+                child: Text(
+                  languageProvider.isUrdu ? 'قرض' : 'Loan',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
           ],
         ),
       ),

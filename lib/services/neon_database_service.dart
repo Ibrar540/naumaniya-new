@@ -523,8 +523,10 @@ class NeonDatabaseService {
       return 'masjid_income';
     } else if (institution == 'masjid' && type == 'expenditure') {
       return 'masjid_expenditure';
+    } else if (institution == 'madrasa' && type == 'loan') {
+      return 'madrasa_loan';
     }
-    return 'madrasa_income';
+      return 'madrasa_income';
   }
 
   // ==================== INCOME ====================
@@ -731,6 +733,87 @@ class NeonDatabaseService {
       parameters: {'id': expenditureId},
     );
     try { AuthService().postAudit('delete_expenditure', details: 'Deleted expenditure id=$expenditureId'); } catch (_) {}
+  }
+
+  // ==================== LOAN ====================
+
+  // Get all loans
+  Future<List<Map<String, dynamic>>> getAllLoans({String institution = 'madrasa'}) async {
+    await _ensureConnection();
+    final tableName = _getBudgetTableName(institution, 'loan');
+    final result = await _connection!.execute('SELECT * FROM $tableName ORDER BY date DESC');
+    return result.map((row) {
+      final map = row.toColumnMap();
+      if (map.containsKey('rs') && !map.containsKey('amount')) map['amount'] = map['rs'];
+      if (map['date'] is DateTime) map['date'] = (map['date'] as DateTime).toIso8601String().split('T')[0];
+      return map;
+    }).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getLoanBySection(int sectionId, {String institution = 'madrasa'}) async {
+    await _ensureConnection();
+    final tableName = _getBudgetTableName(institution, 'loan');
+    final result = await _connection!.execute(
+      Sql.named('SELECT * FROM $tableName WHERE section_id = @section_id ORDER BY date DESC'),
+      parameters: {'section_id': sectionId},
+    );
+    return result.map((row) {
+      final map = row.toColumnMap();
+      if (map.containsKey('rs') && !map.containsKey('amount')) map['amount'] = map['rs'];
+      if (map['date'] is DateTime) map['date'] = (map['date'] as DateTime).toIso8601String().split('T')[0];
+      return map;
+    }).toList();
+  }
+
+  Future<void> addLoan(loan) async {
+    await _ensureConnection();
+    final tableName = _getBudgetTableName(loan.institution ?? 'madrasa', 'loan');
+    await _connection!.execute(
+      Sql.named('''
+        INSERT INTO $tableName (description, transaction_type, amount, action, date, section_id)
+        VALUES (@description, @transaction_type, @amount, @action, @date, @section_id)
+      '''),
+      parameters: {
+        'description': loan.description,
+        'transaction_type': loan.transactionType,
+        'amount': loan.amount,
+        'action': loan.action,
+        'date': loan.date,
+        'section_id': loan.sectionId,
+      },
+    );
+    try { AuthService().postAudit('add_loan', details: 'Added loan ${loan.description ?? ''} amount=${loan.amount}'); } catch (_) {}
+  }
+
+  Future<void> updateLoan(loan) async {
+    if (loan.id == null) return;
+    await _ensureConnection();
+    final tableName = _getBudgetTableName(loan.institution ?? 'madrasa', 'loan');
+    await _connection!.execute(
+      Sql.named('''
+        UPDATE $tableName
+        SET description = @description, transaction_type = @transaction_type, amount = @amount, action = @action, date = @date, section_id = @section_id,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = @id
+      '''),
+      parameters: {
+        'id': loan.id,
+        'description': loan.description,
+        'transaction_type': loan.transactionType,
+        'amount': loan.amount,
+        'action': loan.action,
+        'date': loan.date,
+        'section_id': loan.sectionId,
+      },
+    );
+    try { AuthService().postAudit('update_loan', details: 'Updated loan id=${loan.id}'); } catch (_) {}
+  }
+
+  Future<void> deleteLoan(dynamic loanId, {String institution = 'madrasa'}) async {
+    await _ensureConnection();
+    final tableName = _getBudgetTableName(institution, 'loan');
+    await _connection!.execute(Sql.named('DELETE FROM $tableName WHERE id = @id'), parameters: {'id': loanId});
+    try { AuthService().postAudit('delete_loan', details: 'Deleted loan id=$loanId'); } catch (_) {}
   }
 
   // ==================== CLASSES ====================
