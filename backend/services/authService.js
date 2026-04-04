@@ -100,18 +100,27 @@ class AuthService {
       if (result.rows.length === 0) throw new Error('Pending request not found');
 
       const pending = result.rows[0];
+      const accessType = pending.access_type === 'full' ? 'full' : 'readonly';
+      const role = accessType === 'full' ? 'admin' : 'user';
 
       // Check name not taken in users table
       const existing = await db.query('SELECT id FROM users WHERE name = $1', [pending.name]);
       if (existing.rows.length > 0) throw new Error('Username already exists in users');
 
-      // Insert into users table
+      // Insert into users table — full access signup → admin; readonly → user + grants below
       const userResult = await db.query(
-        `INSERT INTO users (name, password_hash, role, is_active) VALUES ($1, $2, 'user', true) RETURNING id`,
-        [pending.name, pending.password_hash]
+        `INSERT INTO users (name, password_hash, role, is_active) VALUES ($1, $2, $3, true) RETURNING id`,
+        [pending.name, pending.password_hash, role]
       );
 
       const userId = userResult.rows[0].id;
+
+      if (accessType === 'readonly') {
+        await db.query(
+          `INSERT INTO access_grants (user_id, module_name, permission, granted_by) VALUES ($1, $2, $3, $4)`,
+          [userId, null, 'readonly', adminId]
+        );
+      }
 
       // Delete from pending_users
       await db.query('DELETE FROM pending_users WHERE id = $1', [pendingId]);
@@ -563,7 +572,8 @@ class AuthService {
         await db.query('UPDATE users SET is_active = true WHERE id = $1', [request.user_id]);
 
         if (request.type === 'full') {
-          await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', request.user_id]);
+          await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', request.user_id]);
+          await db.query('DELETE FROM access_grants WHERE user_id = $1', [request.user_id]);
         }
 
         if (request.type === 'readonly') {

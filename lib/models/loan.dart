@@ -8,7 +8,6 @@ class Loan {
   String? sectionDocId;
   String? institution;
   DateTime? lastUpdated;
-  String? action;
 
   Loan({
     this.id,
@@ -20,7 +19,6 @@ class Loan {
     this.sectionDocId,
     this.institution,
     this.lastUpdated,
-    this.action,
   });
 
   Map<String, dynamic> toMap() {
@@ -31,7 +29,6 @@ class Loan {
       'amount': amount,
       'section_id': sectionId,
       'institution': institution,
-      'action': action,
       'date': date,
       'lastUpdated': lastUpdated?.toIso8601String() ?? DateTime.now().toIso8601String(),
     };
@@ -63,7 +60,6 @@ class Loan {
       sectionDocId: map['sectionDocId'] != null ? map['sectionDocId'].toString() : null,
       institution: map['institution'] != null ? map['institution'].toString() : null,
       lastUpdated: map['lastUpdated'] != null ? DateTime.tryParse(map['lastUpdated'].toString()) : null,
-      action: map['action'] != null ? map['action'].toString() : null,
     );
   }
 }

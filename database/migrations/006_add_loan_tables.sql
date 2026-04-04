@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS madrasa_loan (
   description TEXT,
   transaction_type TEXT NOT NULL, -- 'loan' or 'payment'
   amount NUMERIC DEFAULT 0,
-  action TEXT,
   date DATE,
   section_id INTEGER,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

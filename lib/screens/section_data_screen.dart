@@ -490,44 +490,6 @@ class _SectionDataScreenState extends State<SectionDataScreen> {
                                       DataCell(Container(width: 70, child: Text(amt.toStringAsFixed(2), style: TextStyle(fontSize: 11)))),
                                       DataCell(Container(width: 90, child: Text(running.toStringAsFixed(2), style: TextStyle(fontSize: 11)))),
                                       DataCell(Container(width: 85, child: Text(_formatDateOnly(row['date'] ?? ''), style: TextStyle(fontSize: 11)))),
-                                      DataCell(
-                                        PopupMenuButton<String>(
-                                          onSelected: (value) async {
-                                            if (value == 'view') {
-                                              // show a simple dialog with details
-                                              showDialog(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  title: Text(isUrdu ? 'تفصیل' : 'Details'),
-                                                  content: SingleChildScrollView(
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text('Description: ${row['description'] ?? ''}'),
-                                                        SizedBox(height: 8),
-                                                        Text('Type: ${(row['transaction_type'] ?? row['type']) ?? ''}'),
-                                                        SizedBox(height: 8),
-                                                        Text('Amount: ${row['amount']?.toString() ?? ''}'),
-                                                        SizedBox(height: 8),
-                                                        Text('Action: ${row['action'] ?? ''}'),
-                                                        SizedBox(height: 8),
-                                                        Text('Date: ${_formatDateOnly(row['date'] ?? '')}'),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('OK'))],
-                                                ),
-                                              );
-                                            }
-                                          },
-                                          itemBuilder: (context) => [
-                                            PopupMenuItem(
-                                              value: 'view',
-                                              child: Row(children: [Icon(Icons.visibility, size: 18), SizedBox(width: 8), Text(isUrdu ? 'تفصیل' : 'View')]),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
                                     ];
                                     rows.add(DataRow(cells: isUrdu ? cells.reversed.toList() : cells));
                                   }

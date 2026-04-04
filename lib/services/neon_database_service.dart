@@ -770,14 +770,13 @@ class NeonDatabaseService {
     final tableName = _getBudgetTableName(loan.institution ?? 'madrasa', 'loan');
     await _connection!.execute(
       Sql.named('''
-        INSERT INTO $tableName (description, transaction_type, amount, action, date, section_id)
-        VALUES (@description, @transaction_type, @amount, @action, @date, @section_id)
+        INSERT INTO $tableName (description, transaction_type, amount, date, section_id)
+        VALUES (@description, @transaction_type, @amount, @date, @section_id)
       '''),
       parameters: {
         'description': loan.description,
         'transaction_type': loan.transactionType,
         'amount': loan.amount,
-        'action': loan.action,
         'date': loan.date,
         'section_id': loan.sectionId,
       },
@@ -792,7 +791,7 @@ class NeonDatabaseService {
     await _connection!.execute(
       Sql.named('''
         UPDATE $tableName
-        SET description = @description, transaction_type = @transaction_type, amount = @amount, action = @action, date = @date, section_id = @section_id,
+        SET description = @description, transaction_type = @transaction_type, amount = @amount, date = @date, section_id = @section_id,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = @id
       '''),
@@ -801,7 +800,6 @@ class NeonDatabaseService {
         'description': loan.description,
         'transaction_type': loan.transactionType,
         'amount': loan.amount,
-        'action': loan.action,
         'date': loan.date,
         'section_id': loan.sectionId,
       },
